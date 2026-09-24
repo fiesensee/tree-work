@@ -1,0 +1,9 @@
+- [ ] Launch my project
+  - [x] Define the idea
+  - [ ] Build the first version
+    - [x] Sketch the layout
+    - [ ] Build the interface
+  - [ ] Share it with a friend
+- [ ] Plan a weekend away
+  - [ ] Choose a destination
+  - [ ] Book a place to stay
