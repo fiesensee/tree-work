@@ -1,0 +1,9 @@
+{
+  "id": "tree-work",
+  "name": "Tree Work",
+  "version": "0.1.0",
+  "minAppVersion": "1.6.0",
+  "description": "Organize tasks as an interactive tree in plain-text .tree files.",
+  "author": "Tree Work",
+  "isDesktopOnly": false
+}

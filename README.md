@@ -1,21 +1,36 @@
-# Tree Work
+# Tree Work for Obsidian
 
-A small local React task tracker. Tasks grow left to right in a connected tree, with as many nested subtasks as you need (up to 100 levels). The only runtime dependencies are React and React DOM; Vite handles development and builds, and Node's built-in HTTP server saves the file.
+An Obsidian plugin for task trees stored in plain-text **`.tree` files**. Opening one in your vault shows the interactive React graph. Each file is an independent tree; edits save directly through Obsidian's Vault API. No local server, database, network connection, or remote fonts are needed by the plugin.
 
-## Run
+Includes nested subtasks, completion rules, zoom, Fit all, collapsible branches, task focus, and Back to all tasks. The view uses your Obsidian theme's fonts and colors, and its CSS is scoped to Tree Work.
 
-Requires Node.js 22.12+ (Node 24 recommended).
+## Install locally
 
-```sh
-npm install
-npm run dev
-```
+Requires Obsidian **1.6.0 or newer**.
 
-Open http://127.0.0.1:5173. The app starts empty and creates `data/tasks.txt` on first load. Each successful change is automatically saved there. There is no database, account, or browser-storage dependency. Keep the Node server running while using the app.
+1. Build with `npm install` and `npm run build`, or use the already-built `dist/tree-work` folder.
+2. Copy that folder into `<your-vault>/.obsidian/plugins/tree-work/` (use your vault's actual configuration folder if customized).
+3. Check that the folder directly contains **`manifest.json`**, **`main.js`**, and **`styles.css`**. Do not nest a second `tree-work` folder inside it.
+4. Reload Obsidian, allow community plugins if necessary, and enable **Tree Work** under Settings → Community plugins.
 
-For a production build, run `npm run build` and then `npm start`. The production server uses the same data file. `PORT` overrides the default port. `TREE_WORK_FILE` overrides the file path (relative to the project, or absolute).
+After rebuilding, replace those three files and disable/re-enable the plugin or reload Obsidian. This is a local plugin build, not a published Community Plugins listing. Nothing is installed into your vault automatically.
 
-## Task file format
+## Create and open trees
+
+- Run **Tree Work: Create new tree** in the command palette. Enter a name; `.tree` is added automatically. The destination follows Obsidian's new-file folder preference.
+- Alternatively, right-click a folder in the file explorer and choose **New task tree** to create one there.
+- Click a `.tree` file in the file explorer to open its graph. Duplicate names get a numeric suffix rather than overwriting existing files.
+- A blank `.tree` file is a valid empty tree. The **+** on **My work** creates the first top-level task.
+
+Tree Work registers the `tree` extension with its custom file view using Obsidian's public [plugin API](https://github.com/obsidianmd/obsidian-api). Markdown files and other extensions keep their existing behavior.
+
+## Bring over the existing tasks
+
+Copy `data/tasks.txt` into your vault and name the copy something like **My work.tree**. The format is unchanged, so no conversion is needed. Keep the original as a backup. The optional `examples/Example.tree` is also ready to copy into a vault.
+
+Your personal data is not included in the plugin bundle or sample file.
+
+## File format
 
 ```text
 - [ ] Launch my project
@@ -25,34 +40,66 @@ For a production build, run `npm run build` and then `npm start`. The production
     - [ ] Build the interface
 ```
 
-- One task per line; two spaces of indentation per nesting level.
-- `- [ ]` means open; `- [x]` means completed. Uppercase `X` is also accepted.
-- Titles are plain text, 1–500 characters, with no tabs or line breaks.
-- Blank lines are ignored. UTF-8, LF, and CRLF are supported.
-- A completed parent must have all its children completed. Parents are completed manually when their subtasks are done.
-- Reopening a child or adding an open child automatically reopens completed ancestors.
-- Edit the file directly to rename, delete, or reorganize tasks, then click **Reload file**. Invalid files produce an error and are not overwritten.
-- Saving uses a temporary file and atomic replacement. Revision checks prevent stale browser tabs from overwriting each other's changes or changes already made in an editor. Avoid editing the file at the exact moment the app is saving (external editors do not share the server's write queue).
+- One task per line; **two spaces per nesting level**.
+- `- [ ]` means open; `- [x]` means completed. Uppercase `X` is accepted.
+- Titles are plain text, 1–500 characters, without tabs or line breaks.
+- UTF-8, LF, CRLF, a UTF-8 BOM, and blank lines are supported.
+- Up to 10,000 tasks and 100 nesting levels.
+- Parents can be completed manually only after every child is complete.
+- Reopening a task or adding an unfinished child reopens all completed ancestors, even outside the focused view.
 
-`data/example.txt` is an optional sample, not loaded into your task file. Personal tasks are excluded from Git. Back up `data/tasks.txt` as needed.
+Rename, delete, and reorganize tasks by editing the text file externally, then click **Reload file** in the graph. This version does not include a raw-text editor inside Obsidian. Invalid files display an error and are never silently replaced with an empty tree.
 
-## Controls
+## Graph controls
 
-Click the **+** on the **My work** root node to add a top-level task, including when the tree is empty. Use the **+** on any task to add a child. Checkboxes with a lock are waiting for their subtasks. Scroll the canvas horizontally and vertically to explore a large tree. Dialogs support Enter to submit and Escape to cancel.
+- **+** on My work adds a top-level task; **+** on a task adds a child.
+- Checkboxes complete/reopen tasks. A lock means unfinished subtasks remain.
+- **− / +** zoom the graph. The percentage resets to **100%**. **Fit all** fits the visible branches and follows changes in the pane size or tree.
+- Chevrons collapse/expand branches; folded tasks show their hidden descendant count. **Collapse all / Expand all** operate on the current view.
+- Click a title or card background to make that task the visible root. **Back to all tasks** restores My work. Focus changes fit the visible tree automatically.
+- Task dialogs support Enter to submit and Escape to cancel.
 
-Use **−** and **+** in the bottom-left corner to zoom the graph. Click the percentage to return to **100%**, or **Fit all** to center the complete tree in the available space. Fit mode follows window resizing and changes to the tree until you adjust the zoom manually. Scrolling still moves around the graph at any zoom level.
+Focus and collapse are temporary view state. They reset when the file is reopened or reloaded and are never written to the task file. Different panes have independent view state.
 
-Use the chevron on a task with subtasks to collapse or expand its branch. Collapsed tasks show the total number of hidden descendants, and completion still depends on every subtask. **Collapse all** folds every branch, leaving the top-level tasks visible; **Expand all** opens every branch. Nested collapse choices are kept when you toggle an ancestor, and adding a subtask opens its parent. **Fit all** fits the currently visible branches. Collapse state is view-only and resets on page refresh or **Reload file**; it never changes the task file.
+## Saving and external changes
 
-Click a task's title or card background to make it the root of the visible tree. Only that task and its descendants are shown, and you can click a deeper task to focus further. **Back to all tasks** returns directly to **My work**. Navigation automatically fits the visible tree. Adding, completing, and reopening tasks still update their original place in the file, including ancestors outside the focused view. Collapse/expand-all applies only to the focused branch. Focus resets on page refresh or **Reload file**.
+Changes save immediately via `Vault.process`, with the source text checked inside the atomic update. If a file has changed in another pane or editor, saving is rejected until you reload. Other open Tree Work panes display a reload notice when the file changes. The reload also closes any add-task dialog because file edits may have changed task paths.
 
-## Verification
+Each view's storage is bound to its own vault file. Renaming a file does not redirect edits elsewhere, and closing a view unregisters its listeners and React root. Normal vault operations handle file rename/delete and synchronization; Tree Work does not manage sync itself.
+
+## Development and verification
+
+Use Node.js 22.12+ (Node 24 recommended).
 
 ```sh
-npm test
-npm run build
+npm install
+npm run build       # type-check + production Obsidian bundle
+npm run dev         # watch plugin JS/CSS; reload plugin after copying outputs
+npm test           # parser, task rules, vault storage, and file creation
+node scripts/check-plugin.mjs  # checks the built package and registration contract
 ```
 
-The tests cover parsing, nested completion rules, reopening ancestors, saving/reloading, malformed file preservation, and concurrent-write conflicts.
+Build output is `dist/tree-work/{main.js,manifest.json,styles.css}`. React is bundled; Obsidian is an external runtime dependency provided by the app. The manifest permits desktop and mobile because the plugin uses public vault and DOM APIs, not Node filesystem APIs.
 
-The server binds to `127.0.0.1` for local use. This prototype is not a multi-user hosted service. Fonts use Google Fonts when available, with local sans-serif fallbacks. The rest of the app works without external services after dependencies are installed.
+Automated verification uses unit tests, API type-checking, and package checks only. **The plugin has not been run inside Obsidian or verified with computer automation.** Desktop/mobile layout, pop-out windows, and theme appearance still need your manual check.
+
+Suggested manual checks:
+
+1. Enable the plugin and create/open an empty `.tree` file.
+2. Add a parent and child; verify the parent stays locked until the child is done.
+3. Close/reopen the file and confirm the task changes remain.
+4. Try zoom, Fit all, folding, focus, and Back to all tasks in a narrow pane.
+5. Open the same tree in two panes, save in one, and reload the other when notified.
+6. Edit or rename the file externally, then reload; verify malformed text produces an error without overwriting it.
+
+## Optional standalone web app
+
+The original web runner remains available for development, with the same React graph:
+
+```sh
+npm run web:dev
+npm run web:build
+npm run web:start
+```
+
+It opens at `http://127.0.0.1:5173` and uses `data/tasks.txt`. `PORT` and `TREE_WORK_FILE` still override those defaults. Its build goes to `dist/web`, separate from the plugin. The Obsidian plugin never starts or contacts this server.

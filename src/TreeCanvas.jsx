@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import NamedElement from './NamedElement.jsx';
 
 const PADDING = 24;
 const MAX_ZOOM = 2;
@@ -32,7 +33,8 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
       };
       setSize(previous => Object.keys(next).every(key => previous[key] === next[key]) ? previous : next);
     };
-    const observer = new ResizeObserver(measure);
+    const Observer = viewport.current.ownerDocument.defaultView?.ResizeObserver ?? ResizeObserver;
+    const observer = new Observer(measure);
     observer.observe(viewport.current);
     observer.observe(content.current);
     observer.observe(toolbar.current);
@@ -78,24 +80,24 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
   const percentage = zoom < 0.1 ? `${Number((zoom * 100).toFixed(1))}%` : `${Math.round(zoom * 100)}%`;
 
   return <>
-    <div ref={viewport} className="tree-canvas" tabIndex={0} role="region" aria-label="Task tree. Scroll to explore branches.">
+    <NamedElement as="div" ref={viewport} className="tree-canvas" tabIndex={0} role="region" label="Task tree. Scroll to explore branches.">
       <div className="tree-stage" style={{ width: stageWidth, height: stageHeight }}>
         <div ref={content} className="tree-content" style={{ left, top, transform: `scale(${zoom})` }}>
           {children}
         </div>
       </div>
-    </div>
-    <div ref={toolbar} className="canvas-footer">
-      {navigationControls && <div className="navigation-controls">{navigationControls}</div>}
-      <div className="zoom-controls" role="group" aria-label="Graph zoom">
-        <button aria-label="Zoom out" title="Zoom out" disabled={!ready || zoom <= minZoom} onClick={() => changeZoom(zoom / 1.25)}>−</button>
-        <button className="zoom-percentage" aria-label={`Zoom ${percentage}. Reset to 100%`} title="Reset to 100%" disabled={!ready} onClick={() => changeZoom(1)}>{percentage}</button>
-        <button aria-label="Zoom in" title="Zoom in" disabled={!ready || zoom >= MAX_ZOOM} onClick={() => changeZoom(zoom * 1.25)}>+</button>
+    </NamedElement>
+    <div ref={toolbar} className="tree-work-footer">
+      {navigationControls && <div className="tree-work-navigation-controls">{navigationControls}</div>}
+      <NamedElement as="div" className="tree-work-zoom-controls" role="group" label="Graph zoom">
+        <NamedElement label="Zoom out" disabled={!ready || zoom <= minZoom} onClick={() => changeZoom(zoom / 1.25)}>−</NamedElement>
+        <NamedElement className="zoom-percentage" label={`Zoom ${percentage}. Reset to 100%`} disabled={!ready} onClick={() => changeZoom(1)}>{percentage}</NamedElement>
+        <NamedElement label="Zoom in" disabled={!ready || zoom >= MAX_ZOOM} onClick={() => changeZoom(zoom * 1.25)}>+</NamedElement>
         <span className="zoom-divider"/>
         <button className="fit-button" aria-pressed={fitting} disabled={!ready} onClick={() => setFitting(true)}>Fit all</button>
-      </div>
-      <div className="branch-controls" role="group" aria-label="Branch visibility">{branchControls}</div>
-      <div className="canvas-controls">{controls}</div>
+      </NamedElement>
+      <NamedElement as="div" className="tree-work-branch-controls" role="group" label="Branch visibility">{branchControls}</NamedElement>
+      <div className="tree-work-file-controls">{controls}</div>
     </div>
   </>;
 }

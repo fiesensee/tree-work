@@ -41,7 +41,7 @@ const server = createServer(async (request, response) => {
       return json(response, 200, await store.save(payload.tree, payload.revision));
     }
     if (!production) return vite.middlewares(request, response);
-    const dist = resolve(root, 'dist');
+    const dist = resolve(root, 'dist/web');
     const path = resolve(dist, `.${decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname)}`);
     if (!path.startsWith(`${dist}${sep}`)) return json(response, 403, { error: 'Invalid path.' });
     try {
@@ -50,7 +50,7 @@ const server = createServer(async (request, response) => {
       response.end(content);
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
-      json(response, 404, { error: 'Not found. Run npm run build before npm start.' });
+      json(response, 404, { error: 'Not found. Run npm run web:build before npm run web:start.' });
     }
   } catch (error) {
     console.error(error.message);
