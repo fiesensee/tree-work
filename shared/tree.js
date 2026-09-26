@@ -1,4 +1,8 @@
 // The file format is an indented checklist, with two spaces per level.
+export function getErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function validateTree(tree) {
   let count = 0;
   function visit(nodes, depth = 0) {

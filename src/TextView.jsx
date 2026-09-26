@@ -1,5 +1,5 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { parseTree, statistics } from '../shared/tree.js';
+import React, { useEffect, useRef, useState } from 'react';
+import { getErrorMessage, parseTree, statistics } from '../shared/tree.js';
 import NamedElement from './NamedElement.jsx';
 
 function Icon({ name, size = 18, ...props }) {
@@ -32,7 +32,7 @@ export default function TextView({
       const tree = parseTree(initialContent);
       return { valid: true, error: null, taskCount: statistics(tree).total };
     } catch (failure) {
-      return { valid: false, error: failure instanceof Error ? failure.message : String(failure), taskCount: 0 };
+      return { valid: false, error: getErrorMessage(failure), taskCount: 0 };
     }
   });
 
@@ -51,7 +51,7 @@ export default function TextView({
       setSyntaxStatus({ valid: true, error: null, taskCount: stats.total });
       return { valid: true, error: null };
     } catch (failure) {
-      const message = failure instanceof Error ? failure.message : String(failure);
+      const message = getErrorMessage(failure);
       setSyntaxStatus({ valid: false, error: message, taskCount: 0 });
       return { valid: false, error: message };
     }
@@ -70,7 +70,7 @@ export default function TextView({
       setSaved(false);
       validate(result.text);
     } catch (failure) {
-      setError(failure.message);
+      setError(getErrorMessage(failure));
     } finally {
       workingRef.current = false;
       setBusy(false);
@@ -89,7 +89,7 @@ export default function TextView({
       setSaved(true);
       return true;
     } catch (failure) {
-      setError(failure.message);
+      setError(getErrorMessage(failure));
       return false;
     } finally {
       workingRef.current = false;
@@ -170,7 +170,7 @@ export default function TextView({
           setText(next);
           setSaved(false);
           validate(next);
-          requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
             target.selectionStart = target.selectionEnd = start + 2;
           });
         } else {
@@ -183,7 +183,7 @@ export default function TextView({
             setText(next);
             setSaved(false);
             validate(next);
-            requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
               target.selectionStart = target.selectionEnd = Math.max(lineStart, start - toRemove);
             });
           }
@@ -218,7 +218,7 @@ export default function TextView({
         setText(next);
         setSaved(false);
         validate(next);
-        requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
           target.selectionStart = lineStart;
           target.selectionEnd = Math.max(lineStart, effectiveEnd + diff);
         });
@@ -247,7 +247,7 @@ export default function TextView({
             setText(next);
             setSaved(false);
             validate(next);
-            requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
               target.selectionStart = target.selectionEnd = lineStart + indent.length;
             });
           } else {
@@ -257,7 +257,7 @@ export default function TextView({
             setText(next);
             setSaved(false);
             validate(next);
-            requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
               target.selectionStart = target.selectionEnd = start + insert.length;
             });
           }

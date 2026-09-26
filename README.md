@@ -1,8 +1,14 @@
 # Tree Work for Obsidian
 
-An Obsidian plugin for task trees stored in plain-text **`.tree` files**. Opening one in your vault shows the interactive React graph. Each file is an independent tree; edits save directly through Obsidian's Vault API. No local server, database, network connection, or remote fonts are needed by the plugin.
+**Break down big goals and complex projects into visual, interactive task trees.**
 
-Includes nested subtasks, completion rules, zoom, Fit all, collapsible branches, task focus, and Back to all tasks. The view uses your Obsidian theme's fonts and colors, and its CSS is scoped to Tree Work.
+Flat to-do lists get overwhelming when projects grow. **Tree Work** brings visual structure to your vault by turning complex projects into interactive task trees—helping you map out dependencies, collapse distractions, and zoom straight into what needs your attention right now.
+
+- **Visual hierarchy:** Break down ambitious goals into clear, bite-sized subtasks.
+- **Dependency rules:** Parent tasks unlock and complete only when all their subtasks are finished.
+- **Deep focus mode:** Click any task to isolate its entire branch and hide unrelated work.
+- **Dual visual & text views:** Work in the interactive node graph or switch to a lightning-fast checklist editor.
+- **100% local and private:** Stored directly in your vault with zero servers, databases, or external dependencies. Fully styled by your Obsidian theme.
 
 ![tree-work example](docs/images/tree-work-example.png)
 

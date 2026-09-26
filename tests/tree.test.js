@@ -1,6 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTree, serializeTree, changeTree, deleteNode, removeCompleted, statistics } from '../shared/tree.js';
+import { parseTree, serializeTree, changeTree, deleteNode, removeCompleted, statistics, getErrorMessage } from '../shared/tree.js';
+
+test('getErrorMessage safely extracts messages from Error instances and non-Error values', () => {
+  assert.equal(getErrorMessage(new Error('Sample error')), 'Sample error');
+  assert.equal(getErrorMessage('Raw string error'), 'Raw string error');
+  assert.equal(getErrorMessage(404), '404');
+  assert.equal(getErrorMessage(null), 'null');
+  assert.equal(getErrorMessage(undefined), 'undefined');
+});
+
 
 test('round trips nested tasks, Unicode, and checklist-like titles', () => {
   const input = '- [ ] Plan 🌱\n  - [x] First: [draft]\n  - [ ] Next\n    - [ ] Deep task\n';

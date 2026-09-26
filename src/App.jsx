@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { changeTree, deleteNode, getNode, removeCompleted, statistics } from '../shared/tree.js';
+import { changeTree, deleteNode, getErrorMessage, getNode, removeCompleted, statistics } from '../shared/tree.js';
 import TreeCanvas from './TreeCanvas.jsx';
 import NamedElement from './NamedElement.jsx';
 import TextView from './TextView.jsx';
@@ -232,7 +232,7 @@ export default function App({
       setAdding(null);
       setDeleting(null);
       setCleaningUp(false);
-    } catch (failure) { setError(failure.message); }
+    } catch (failure) { setError(getErrorMessage(failure)); }
     finally { working.current = false; setBusy(false); }
   }
   useEffect(() => {
@@ -256,7 +256,7 @@ export default function App({
     try {
       const value = await storage.save(nextTree, data.revision);
       setData(value); setSaved(true); return true;
-    } catch (failure) { setError(failure.message); return false; }
+    } catch (failure) { setError(getErrorMessage(failure)); return false; }
     finally { working.current = false; setBusy(false); }
   }
 
@@ -276,7 +276,7 @@ export default function App({
         });
         setAdding(null);
       }
-    } catch (failure) { setError(failure.message); }
+    } catch (failure) { setError(getErrorMessage(failure)); }
   }
 
   function handleDeleteRequest(path, node) {
@@ -305,7 +305,7 @@ export default function App({
       });
       return await save(nextTree);
     } catch (failure) {
-      setError(failure.message);
+      setError(getErrorMessage(failure));
       return false;
     }
   }
@@ -325,7 +325,7 @@ export default function App({
       setCollapsed(new Set());
       await save(nextTree);
     } catch (failure) {
-      setError(failure.message);
+      setError(getErrorMessage(failure));
     }
   }
 

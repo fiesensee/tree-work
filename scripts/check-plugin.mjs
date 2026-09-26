@@ -10,6 +10,8 @@ assert.deepEqual((await readdir(directory)).sort(), ['main.js', 'manifest.json',
 const code = await readFile(new URL('main.js', directory), 'utf8');
 const css = await readFile(new URL('styles.css', directory), 'utf8');
 assert.ok(!code.includes('/api/tasks'), 'Plugin must not contact the standalone server');
+assert.ok(!code.includes("createElement('script')") && !code.includes('createElement("script")'), 'Plugin must not create script elements at runtime');
+assert.ok(!code.includes('<script>'), 'Plugin must not inject script tags via HTML');
 assert.ok(!css.includes('fonts.googleapis.com'), 'Plugin must work without remote fonts');
 assert.ok(!css.includes('100dvh'), 'Plugin must fit its pane, not the whole window');
 assert.ok(css.includes('.tree-work-root'), 'Plugin styles must be scoped');

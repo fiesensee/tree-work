@@ -17,7 +17,8 @@ if (vaultPluginDir) {
     await writeFile(`${vaultPluginDir}/.hotreload`, '');
     canSyncToVault = true;
   } catch (err) {
-    console.warn(`Vault path not accessible (${vaultPluginDir}), skipping sync: ${err.message}`);
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`Vault path not accessible (${vaultPluginDir}), skipping sync: ${message}`);
   }
 }
 
@@ -44,8 +45,24 @@ const build = await context({
   sourcemap: watching ? 'inline' : false,
   define: { 'process.env.NODE_ENV': JSON.stringify(watching ? 'development' : 'production') },
   metafile: true,
-  plugins: [{
-    name: 'obsidian-package',
+  plugins: [
+    {
+      name: 'sanitize-react-dom',
+      setup(builder) {
+        builder.onLoad({ filter: /react-dom/ }, async (args) => {
+          let contents = await readFile(args.path, 'utf8');
+          // Obsidian rejects dynamic script element creation. Strip React 19's DOM hoistable script injection.
+          contents = contents
+            .replaceAll('.createElement("script")', '.createElement("span")')
+            .replaceAll(".createElement('script')", '.createElement("span")')
+            .replaceAll('<script>\\x3c/script>', '<span></span>')
+            .replaceAll('case "script":', 'case "__script_disabled__":');
+          return { contents, loader: 'js' };
+        });
+      },
+    },
+    {
+      name: 'obsidian-package',
     setup(builder) {
       builder.onEnd(async result => {
         if (result.errors.length) return;
