@@ -4,6 +4,8 @@ An Obsidian plugin for task trees stored in plain-text **`.tree` files**. Openin
 
 Includes nested subtasks, completion rules, zoom, Fit all, collapsible branches, task focus, and Back to all tasks. The view uses your Obsidian theme's fonts and colors, and its CSS is scoped to Tree Work.
 
+![tree-work example](docs/images/tree-work-example.png)
+
 ## Install locally
 
 Requires Obsidian **1.6.0 or newer**.
