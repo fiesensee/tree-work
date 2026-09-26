@@ -1,7 +1,7 @@
 {
   "id": "tree-work",
   "name": "Tree Work",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "minAppVersion": "1.6.0",
   "description": "Break down complex projects into visual, interactive task trees with nested subtasks and deep focus.",
   "author": "Felix Isensee",
