@@ -270,6 +270,29 @@
 .tree-work-root .children[hidden] {
   display: none;
 }
+.tree-work-root .task-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tree-work-root .delete-task {
+  width: 27px;
+  height: 27px;
+  background: transparent;
+  border: 1px solid var(--tw-border);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tw-muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background-color .15s;
+}
+.tree-work-root .delete-task:hover:not(:disabled) {
+  background: var(--tw-error-soft);
+  color: var(--tw-error);
+  border-color: var(--tw-error);
+}
 .tree-work-root .add-child {
   width: 27px;
   height: 27px;
@@ -386,6 +409,30 @@
   border-radius: 6px;
   font-size: 13px;
   color: var(--tw-text);
+}
+.tree-work-root .danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--tw-error);
+  background: var(--tw-error);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: none;
+  cursor: pointer;
+}
+.tree-work-root .danger-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tw-error) 85%, black);
+  border-color: color-mix(in srgb, var(--tw-error) 85%, black);
+}
+.tree-work-root .danger-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .tree-work-root .form-error,
 .tree-work-root dialog .form-error {
@@ -595,3 +642,127 @@
 @media (max-width: 760px) {
   .tree-work-root .tree-work-file-controls { gap: 12px; margin-left: auto; }
 }
+
+/* Text View */
+.tree-work-root .tree-work-text-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--tw-canvas);
+  color: var(--tw-text);
+  overflow: hidden;
+  position: relative;
+}
+
+.tree-work-root .tree-work-text-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--tw-surface);
+  border-bottom: 1px solid var(--tw-border);
+  box-shadow: var(--tw-shadow);
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.tree-work-root .tree-work-text-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tree-work-root .tree-work-text-toolbar .primary-button {
+  min-height: 36px;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.tree-work-root .tree-work-text-toolbar .secondary-button {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tree-work-root .tree-work-validation {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-work-root .tree-work-validation.is-valid {
+  color: var(--tw-success);
+  background: var(--tw-success-soft);
+  border: 1px solid var(--tw-success);
+}
+
+.tree-work-root .tree-work-validation.is-invalid {
+  color: var(--tw-error);
+  background: var(--tw-error-soft);
+  border: 1px solid var(--tw-error);
+}
+
+.tree-work-root .tree-work-text-editor-container {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  background: var(--tw-canvas);
+}
+
+.tree-work-root .tree-work-line-numbers {
+  flex-shrink: 0;
+  width: 48px;
+  padding: 16px 8px 16px 0;
+  text-align: right;
+  font-family: var(--font-monospace, monospace);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--tw-muted);
+  user-select: none;
+  background: var(--tw-surface);
+  border-right: 1px solid var(--tw-border);
+  overflow: hidden;
+}
+
+.tree-work-root .tree-work-textarea {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  margin: 0;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  resize: none !important;
+  background: transparent !important;
+  color: var(--tw-text, var(--text-normal, #24232a)) !important;
+  caret-color: var(--tw-accent-text, var(--tw-accent));
+  font-family: var(--font-monospace, monospace);
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+  box-sizing: border-box;
+}
+
+.tree-work-root .tree-work-textarea:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+

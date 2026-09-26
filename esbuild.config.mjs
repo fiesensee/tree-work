@@ -10,17 +10,24 @@ const vaultPath = process.env.VAULT_PATH;
 const vaultPluginDir = vaultPath ? resolve(vaultPath, '.obsidian/plugins/tree-work') : null;
 
 await mkdir(destination, { recursive: true });
+let canSyncToVault = false;
 if (vaultPluginDir) {
-  await mkdir(vaultPluginDir, { recursive: true });
-  // Hot Reload community plugin requires .hotreload file to track this plugin
-  await writeFile(`${vaultPluginDir}/.hotreload`, '');
+  try {
+    await mkdir(vaultPluginDir, { recursive: true });
+    await writeFile(`${vaultPluginDir}/.hotreload`, '');
+    canSyncToVault = true;
+  } catch (err) {
+    console.warn(`Vault path not accessible (${vaultPluginDir}), skipping sync: ${err.message}`);
+  }
 }
 
 async function copyMetadata() {
   const manifest = await readFile('manifest.json');
   await writeFile(`${destination}/manifest.json`, manifest);
-  if (vaultPluginDir) {
-    await writeFile(`${vaultPluginDir}/manifest.json`, manifest);
+  if (canSyncToVault) {
+    try {
+      await writeFile(`${vaultPluginDir}/manifest.json`, manifest);
+    } catch {}
   }
 }
 
@@ -45,14 +52,16 @@ const build = await context({
         for (const file of result.outputFiles) {
           const name = file.path.endsWith('.css') ? 'styles.css' : 'main.js';
           await writeFile(`${destination}/${name}`, file.contents);
-          if (vaultPluginDir) {
-            await writeFile(`${vaultPluginDir}/${name}`, file.contents);
+          if (canSyncToVault) {
+            try {
+              await writeFile(`${vaultPluginDir}/${name}`, file.contents);
+            } catch {}
           }
         }
         await copyMetadata();
         await writeFile('dist/plugin-meta.json', JSON.stringify(result.metafile, null, 2));
         console.log(`Tree Work plugin built in ${destination}/`);
-        if (vaultPluginDir) {
+        if (canSyncToVault) {
           console.log(`Synced plugin to ${vaultPluginDir}/`);
         }
       });

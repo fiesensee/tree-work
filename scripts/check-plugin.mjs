@@ -15,18 +15,31 @@ assert.ok(!css.includes('100dvh'), 'Plugin must fit its pane, not the whole wind
 assert.ok(css.includes('.tree-work-root'), 'Plugin styles must be scoped');
 
 // Load the actual CommonJS release with a minimal API double, without any UI.
-const registrations = {};
+const registrations = { commands: [] };
 class Plugin {
-  app = { workspace: { on: (event, callback) => ({ event, callback }) } };
+  app = { workspace: { on: (event, callback) => ({ event, callback }), getActiveViewOfType: () => null } };
   registerView(type, factory) { registrations.view = { type, factory }; }
   registerExtensions(extensions, type) { registrations.extensions = { extensions, type }; }
-  addCommand(command) { registrations.command = command; }
+  addCommand(command) { registrations.commands.push(command); }
   registerEvent(event) { registrations.event = event; }
 }
 class FileView {
   constructor(leaf) { this.leaf = leaf; }
+  onload() {}
+  addAction(icon, title, callback) {
+    return { icon, title, callback, setAttribute() {} };
+  }
 }
-const api = { Plugin, FileView, Modal: class {}, TFolder: class {}, Notice: class {}, Setting: class {} };
+const api = {
+  Plugin,
+  FileView,
+  Modal: class {},
+  TFolder: class {},
+  Notice: class {},
+  Setting: class {},
+  setIcon: () => {},
+  setTooltip: () => {},
+};
 const module = { exports: {} };
 runInNewContext(code, {
   module, exports: module.exports,
@@ -37,9 +50,12 @@ const plugin = new module.exports.default();
 plugin.onload();
 assert.equal(registrations.view.type, 'tree-work');
 assert.equal(JSON.stringify(registrations.extensions), JSON.stringify({ extensions: ['tree'], type: 'tree-work' }));
-assert.equal(registrations.command.id, 'create-tree');
+assert.ok(registrations.commands.some(c => c.id === 'create-tree'), 'create-tree command must be registered');
+assert.ok(registrations.commands.some(c => c.id === 'toggle-tree-text-view'), 'toggle-tree-text-view command must be registered');
+assert.ok(registrations.commands.some(c => c.id === 'clean-up-completed'), 'clean-up-completed command must be registered');
 assert.equal(registrations.event.event, 'file-menu');
 const view = registrations.view.factory({});
+view.onload();
 assert.equal(view.getViewType(), 'tree-work');
 assert.equal(view.canAcceptExtension('tree'), true);
 assert.equal(view.canAcceptExtension('md'), false);

@@ -43,9 +43,24 @@ Tree Work registers the `tree` extension with its custom file view using Obsidia
 - Parents can be completed manually only after every child is complete.
 - Reopening a task or adding an unfinished child reopens all completed ancestors, even outside the focused view.
 
-Rename, delete, and reorganize tasks by editing the text file externally, then click **Reload file** in the graph. This version does not include a raw-text editor inside Obsidian. Invalid files display an error and are never silently replaced with an empty tree.
+You can quickly reorganize, rename, or bulk edit tasks by switching to the built-in text view, or by editing the file in an external editor. Invalid files display an error and are never silently replaced with an empty tree.
 
-## Graph controls
+## View modes and controls
+
+### Switching between Tree View and Text View
+- Click the **Switch to text view** button in the top-right pane header (file-text icon) or in the bottom toolbar.
+- Alternatively, run **Tree Work: Switch between tree and text view** in the command palette.
+- In text view, click **Switch to tree view** to save your edits and return to the visual graph.
+- If a `.tree` file contains syntax errors (such as mismatched indentation), the view provides a direct **Switch to text view to fix file** button so you can resolve issues immediately without opening another editor.
+
+### Text view editor features
+- **Checklist shortcuts:** Pressing `Enter` on a task line automatically continues with `- [ ] `; pressing `Enter` on an empty checkbox line clears the checkbox prefix.
+- **Indentation:** Pressing `Tab` inserts two spaces (or indents selected lines); `Shift+Tab` outdents lines.
+- **Instant save:** Press `Ctrl+S` (or `Cmd+S` on macOS) or click **Save** to save immediately.
+- **Live validation:** Live indicator shows whether the current text conforms to the `.tree` format and reports line-specific syntax errors in real time.
+- **Line numbers:** Line counter helps quickly locate lines referenced in error messages.
+
+### Graph controls
 
 - **+** on My work adds a top-level task; **+** on a task adds a child.
 - Checkboxes complete/reopen tasks. A lock means unfinished subtasks remain.

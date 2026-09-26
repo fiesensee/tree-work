@@ -32,6 +32,13 @@ export function createVaultStore(vault, file) {
       revision = text;
       return { tree, revision: text };
     },
+    async readText() {
+      assertActive();
+      const text = await vault.read(file);
+      assertActive();
+      revision = text;
+      return { text, revision: text };
+    },
     async save(tree, expectedRevision) {
       assertActive();
       const text = serializeTree(tree);
@@ -48,6 +55,23 @@ export function createVaultStore(vault, file) {
         });
         revision = saved;
         return { tree: parseTree(saved), revision: saved };
+      } finally {
+        pendingText = undefined;
+      }
+    },
+    async saveText(text, expectedRevision) {
+      assertActive();
+      pendingText = text;
+      try {
+        const saved = await vault.process(file, current => {
+          assertActive();
+          if (current !== expectedRevision) {
+            throw new Error('This file changed in another pane or editor. Reload file before trying again.');
+          }
+          return text;
+        });
+        revision = saved;
+        return { text: saved, revision: saved };
       } finally {
         pendingText = undefined;
       }

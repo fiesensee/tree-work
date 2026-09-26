@@ -76,3 +76,38 @@ export function statistics(nodes) {
     return { total: result.total + children.total + 1, done: result.done + children.done + Number(node.done) };
   }, { total: 0, done: 0 });
 }
+
+export function deleteNode(tree, path) {
+  if (!path || !path.length) throw new Error('A path is required to delete a task.');
+  const copy = structuredClone(tree);
+  if (path.length === 1) {
+    const index = path[0];
+    if (index < 0 || index >= copy.length) throw new Error('Task does not exist.');
+    copy.splice(index, 1);
+  } else {
+    const parentPath = path.slice(0, -1);
+    const index = path[path.length - 1];
+    const parent = getNode(copy, parentPath);
+    if (!parent || !parent.children || index < 0 || index >= parent.children.length) {
+      throw new Error('Task does not exist.');
+    }
+    parent.children.splice(index, 1);
+  }
+  return validateTree(copy);
+}
+
+export function removeCompleted(tree) {
+  function prune(nodes) {
+    const kept = [];
+    for (const node of nodes) {
+      if (!node.done) {
+        kept.push({
+          ...node,
+          children: prune(node.children),
+        });
+      }
+    }
+    return kept;
+  }
+  return validateTree(prune(tree));
+}

@@ -141,3 +141,33 @@ test('new trees use .tree, respect folders, and never overwrite existing files',
     await assert.rejects(createTreeFile(vault, '/', name), /file name/);
   }
 });
+
+test('text methods allow reading and fixing malformed files while honoring atomic revisions', async () => {
+  const vault = fakeVault({ 'Broken.tree': 'bad syntax', 'Note.tree': '- [ ] Initial\n' });
+  const brokenFile = vault.getAbstractFileByPath('Broken.tree');
+  const store = createVaultStore(vault, brokenFile);
+
+  // read() rejects malformed syntax, but readText() loads the raw text safely
+  await assert.rejects(store.read(), /Line 1/);
+  const raw = await store.readText();
+  assert.equal(raw.text, 'bad syntax');
+  assert.equal(raw.revision, 'bad syntax');
+
+  // saveText allows fixing the file with valid content
+  const fixed = await store.saveText('- [ ] Fixed task\n', raw.revision);
+  assert.equal(fixed.text, '- [ ] Fixed task\n');
+  assert.equal(await vault.read(brokenFile), '- [ ] Fixed task\n');
+
+  // Once fixed, read() now parses properly
+  const parsed = await store.read();
+  assert.equal(parsed.tree[0].title, 'Fixed task');
+
+  // Competing saveText attempts reject stale revisions
+  await assert.rejects(store.saveText('competing', 'stale-rev'), /changed in another pane/);
+
+  // Rejects after disposal
+  store.dispose();
+  await assert.rejects(store.readText(), /closed/);
+  await assert.rejects(store.saveText('text', 'rev'), /closed/);
+});
+
