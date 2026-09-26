@@ -7,10 +7,7 @@
     "dev": "node esbuild.config.mjs --watch",
     "build": "npm run typecheck && node esbuild.config.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node --test",
-    "web:dev": "node server/index.js",
-    "web:build": "vite build",
-    "web:start": "node server/index.js --production"
+    "test": "node --test"
   },
   "engines": {
     "node": ">=22.12.0"
@@ -25,7 +22,6 @@
     "@types/react-dom": "^19.3.0",
     "esbuild": "^0.28.2",
     "obsidian": "^1.13.1",
-    "typescript": "^7.0.2",
-    "vite": "^7.3.0"
+    "typescript": "^7.0.2"
   }
 }

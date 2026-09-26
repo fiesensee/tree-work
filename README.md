@@ -21,14 +21,9 @@ After rebuilding, replace those three files and disable/re-enable the plugin or 
 - Alternatively, right-click a folder in the file explorer and choose **New task tree** to create one there.
 - Click a `.tree` file in the file explorer to open its graph. Duplicate names get a numeric suffix rather than overwriting existing files.
 - A blank `.tree` file is a valid empty tree. The **+** on **My work** creates the first top-level task.
+- You can also copy `examples/Example.tree` into your vault to try a sample task tree.
 
 Tree Work registers the `tree` extension with its custom file view using Obsidian's public [plugin API](https://github.com/obsidianmd/obsidian-api). Markdown files and other extensions keep their existing behavior.
-
-## Bring over the existing tasks
-
-Copy `data/tasks.txt` into your vault and name the copy something like **My work.tree**. The format is unchanged, so no conversion is needed. Keep the original as a backup. The optional `examples/Example.tree` is also ready to copy into a vault.
-
-Your personal data is not included in the plugin bundle or sample file.
 
 ## File format
 
@@ -71,17 +66,37 @@ Each view's storage is bound to its own vault file. Renaming a file does not red
 
 Use Node.js 22.12+ (Node 24 recommended).
 
+### Live development with auto-sync to your vault
+
+To develop without manually copying files into your vault:
+
+1. Set `VAULT_PATH` in a local `.env` file (ignored by Git) or environment:
+   ```env
+   VAULT_PATH=/path/to/your/vault
+   ```
+   *(On Windows/WSL, use your WSL mount path, e.g. `/mnt/c/Users/<user>/.../vault`)*
+
+2. Run the watch script:
+   ```sh
+   npm run dev
+   ```
+   `esbuild` will recompile on file changes, output to `dist/tree-work/`, and automatically copy `main.js`, `styles.css`, and `manifest.json` into `<vault>/.obsidian/plugins/tree-work/`. It also creates `.hotreload` in the destination folder.
+
+3. In your Obsidian vault, install and enable the **[Hot Reload](https://github.com/pjeby/hot-reload)** plugin. It detects `.hotreload` and automatically reloads Tree Work in Obsidian on every build without restarting the app.
+
+### Commands
+
 ```sh
 npm install
-npm run build       # type-check + production Obsidian bundle
-npm run dev         # watch plugin JS/CSS; reload plugin after copying outputs
-npm test           # parser, task rules, vault storage, and file creation
-node scripts/check-plugin.mjs  # checks the built package and registration contract
+npm run build                  # type-check + production bundle (syncs to vault if VAULT_PATH is set)
+npm run dev                    # watch mode with live sync
+npm test                       # parser, task rules, vault storage, and file creation
+node scripts/check-plugin.mjs  # verify package bundle and registration contract
 ```
 
 Build output is `dist/tree-work/{main.js,manifest.json,styles.css}`. React is bundled; Obsidian is an external runtime dependency provided by the app. The manifest permits desktop and mobile because the plugin uses public vault and DOM APIs, not Node filesystem APIs.
 
-Automated verification uses unit tests, API type-checking, and package checks only. **The plugin has not been run inside Obsidian or verified with computer automation.** Desktop/mobile layout, pop-out windows, and theme appearance still need your manual check.
+Automated verification uses unit tests, API type-checking, and package checks only.
 
 Suggested manual checks:
 
@@ -92,14 +107,3 @@ Suggested manual checks:
 5. Open the same tree in two panes, save in one, and reload the other when notified.
 6. Edit or rename the file externally, then reload; verify malformed text produces an error without overwriting it.
 
-## Optional standalone web app
-
-The original web runner remains available for development, with the same React graph:
-
-```sh
-npm run web:dev
-npm run web:build
-npm run web:start
-```
-
-It opens at `http://127.0.0.1:5173` and uses `data/tasks.txt`. `PORT` and `TREE_WORK_FILE` still override those defaults. Its build goes to `dist/web`, separate from the plugin. The Obsidian plugin never starts or contacts this server.
