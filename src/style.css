@@ -267,8 +267,9 @@
   margin-top: 4px;
   color: var(--tw-accent-text);
 }
+.tree-work-root [hidden],
 .tree-work-root .children[hidden] {
-  display: none;
+  display: none !important;
 }
 .tree-work-root .task-actions {
   display: flex;
@@ -498,6 +499,8 @@
 .tree-work-root .tree-stage {
   position: relative;
   overflow: hidden;
+  min-width: 100%;
+  min-height: 100%;
 }
 .tree-work-root .tree-content {
   position: absolute;

@@ -23,7 +23,9 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
   }, [navigationKey]);
 
   useLayoutEffect(() => {
+    let frameId = 0;
     const measure = () => {
+      if (!viewport.current || !content.current || !toolbar.current) return;
       const next = {
         width: viewport.current.clientWidth,
         height: viewport.current.clientHeight,
@@ -33,13 +35,20 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
       };
       setSize(previous => Object.keys(next).every(key => previous[key] === next[key]) ? previous : next);
     };
+    const handleResize = () => {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(measure);
+    };
     const Observer = viewport.current.ownerDocument.defaultView?.ResizeObserver ?? ResizeObserver;
-    const observer = new Observer(measure);
+    const observer = new Observer(handleResize);
     observer.observe(viewport.current);
     observer.observe(content.current);
     observer.observe(toolbar.current);
     measure();
-    return () => observer.disconnect();
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      observer.disconnect();
+    };
   }, []);
 
   const fitZoom = Math.max(0.0001, Math.min(1,
@@ -48,6 +57,8 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
   ));
   const minZoom = Math.min(0.1, fitZoom);
   const zoom = fitting ? fitZoom : manualZoom;
+  const hasHorizontalOverflow = size.width > 0 && size.contentWidth * zoom + PADDING * 2 > size.width;
+  const hasVerticalOverflow = size.height > 0 && size.contentHeight * zoom + PADDING * 2 + size.bottom > size.height;
   const stageWidth = Math.max(size.width, size.contentWidth * zoom + PADDING * 2);
   const stageHeight = Math.max(size.height, size.contentHeight * zoom + PADDING * 2 + size.bottom);
   const left = (stageWidth - size.contentWidth * zoom) / 2;
@@ -81,7 +92,13 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
 
   return <>
     <NamedElement as="div" ref={viewport} className="tree-canvas" tabIndex={0} role="region" label="Task tree. Scroll to explore branches.">
-      <div className="tree-stage" style={{ width: stageWidth, height: stageHeight }}>
+      <div
+        className="tree-stage"
+        style={{
+          width: hasHorizontalOverflow ? stageWidth : '100%',
+          height: hasVerticalOverflow ? stageHeight : '100%',
+        }}
+      >
         <div ref={content} className="tree-content" style={{ left, top, transform: `scale(${zoom})` }}>
           {children}
         </div>
