@@ -47,7 +47,7 @@ function fakeVault(initial = {}) {
   return vault;
 }
 
-test('vault saves retain the checklist format and notify only other panes', async () => {
+test('vault saves retain YAML format and notify only other panes', async () => {
   const vault = fakeVault({ 'Work.tree': '- [ ] Project\n  - [ ] Child\n' });
   const file = vault.getAbstractFileByPath('Work.tree');
   const first = createVaultStore(vault, file);
@@ -60,7 +60,8 @@ test('vault saves retain the checklist format and notify only other panes', asyn
   const stale = await second.read();
   const next = changeTree(loaded.tree, [0, 0], node => { node.done = true; });
   await first.save(next, loaded.revision);
-  assert.equal(await vault.read(file), '- [ ] Project\n  - [x] Child\n');
+  const savedTree = parseTree(await vault.read(file));
+  assert.equal(savedTree[0].children[0].status, 'done');
   assert.equal(ownChanges, 0);
   assert.equal(otherChanges, 1);
   await assert.rejects(second.save(stale.tree, stale.revision), /changed in another pane/);
@@ -90,12 +91,12 @@ test('atomic revision checks reject competing saves and preserve external edits'
 });
 
 test('malformed files and invalid completion states cannot be overwritten', async () => {
-  const vault = fakeVault({ 'Broken.tree': 'not a checklist', 'Valid.tree': '- [ ] Parent\n  - [ ] Child\n' });
+  const vault = fakeVault({ 'Broken.tree': '{ not valid yaml', 'Valid.tree': '- [ ] Parent\n  - [ ] Child\n' });
   const file = vault.getAbstractFileByPath('Broken.tree');
   const broken = createVaultStore(vault, file);
-  await assert.rejects(broken.read(), /Line 1/);
-  await assert.rejects(broken.save([], 'not a checklist'), /Line 1/);
-  assert.equal(await vault.read(file), 'not a checklist');
+  await assert.rejects(broken.read(), /YAML syntax|list/);
+  await assert.rejects(broken.save([], '{ not valid yaml'), /YAML syntax|list/);
+  assert.equal(await vault.read(file), '{ not valid yaml');
   const valid = createVaultStore(vault, vault.getAbstractFileByPath('Valid.tree'));
   const loaded = await valid.read();
   loaded.tree[0].done = true;
@@ -109,8 +110,10 @@ test('stores follow renames, remain file-bound, and reject use after disposal', 
   const store = createVaultStore(vault, file);
   const loaded = await store.read();
   vault.rename(file, 'Renamed.tree');
-  await store.save(parseTree('- [ ] Saved after rename\n'), loaded.revision);
-  assert.equal(await vault.read(file), '- [ ] Saved after rename\n');
+  const newTree = parseTree('- [ ] Saved after rename\n');
+  await store.save(newTree, loaded.revision);
+  const savedTree = parseTree(await vault.read(file));
+  assert.equal(savedTree[0].title, 'Saved after rename');
   assert.equal(await vault.read(vault.getAbstractFileByPath('Other.tree')), '- [ ] Untouched\n');
   store.dispose();
   await assert.rejects(store.read(), /closed/);
@@ -143,15 +146,15 @@ test('new trees use .tree, respect folders, and never overwrite existing files',
 });
 
 test('text methods allow reading and fixing malformed files while honoring atomic revisions', async () => {
-  const vault = fakeVault({ 'Broken.tree': 'bad syntax', 'Note.tree': '- [ ] Initial\n' });
+  const vault = fakeVault({ 'Broken.tree': '{ bad syntax', 'Note.tree': '- [ ] Initial\n' });
   const brokenFile = vault.getAbstractFileByPath('Broken.tree');
   const store = createVaultStore(vault, brokenFile);
 
   // read() rejects malformed syntax, but readText() loads the raw text safely
-  await assert.rejects(store.read(), /Line 1/);
+  await assert.rejects(store.read(), /YAML syntax|list/);
   const raw = await store.readText();
-  assert.equal(raw.text, 'bad syntax');
-  assert.equal(raw.revision, 'bad syntax');
+  assert.equal(raw.text, '{ bad syntax');
+  assert.equal(raw.revision, '{ bad syntax');
 
   // saveText allows fixing the file with valid content
   const fixed = await store.saveText('- [ ] Fixed task\n', raw.revision);

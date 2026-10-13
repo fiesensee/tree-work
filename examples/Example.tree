@@ -1,9 +1,48 @@
-- [ ] Launch my project
-  - [x] Define the idea
-  - [ ] Build the first version
-    - [x] Sketch the layout
-    - [ ] Build the interface
-  - [ ] Share it with a friend
-- [ ] Plan a weekend away
-  - [ ] Choose a destination
-  - [ ] Book a place to stay
+- title: Launch my project
+  status: doing
+  priority: high
+  tag: startup
+  collapsed: false
+  children:
+    - title: Define the idea
+      status: done
+      priority: high
+      tag: planning
+      collapsed: false
+    - title: Build the first version
+      status: doing
+      priority: high
+      tag: development
+      collapsed: false
+      children:
+        - title: Sketch the layout
+          status: done
+          priority: medium
+          tag: design
+          collapsed: false
+        - title: Build the interface
+          status: doing
+          priority: high
+          tag: dev
+          collapsed: false
+    - title: Share it with a friend
+      status: open
+      priority: medium
+      tag: feedback
+      collapsed: false
+- title: Plan a weekend away
+  status: open
+  priority: low
+  tag: vacation
+  collapsed: true
+  children:
+    - title: Choose a destination
+      status: open
+      priority: medium
+      tag: ideas
+      collapsed: false
+    - title: Book a place to stay
+      status: open
+      priority: low
+      tag: booking
+      collapsed: false

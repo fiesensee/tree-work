@@ -227,11 +227,120 @@
   text-decoration: line-through;
   text-decoration-color: var(--tw-success);
 }
+/* Priority borders */
+.tree-work-root .task-card.priority-low:not(.in-progress):not(.completed) {
+  border-color: var(--tw-border);
+}
+.tree-work-root .task-card.priority-medium:not(.in-progress):not(.completed) {
+  border-color: color-mix(in srgb, var(--tw-error) 45%, var(--tw-border));
+}
+.tree-work-root .task-card.priority-medium:not(.in-progress):not(.completed):hover {
+  border-color: color-mix(in srgb, var(--tw-error) 70%, var(--tw-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tw-error) 40%, transparent), var(--tw-shadow);
+}
+.tree-work-root .task-card.priority-high:not(.in-progress):not(.completed) {
+  border-color: var(--tw-error);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tw-error) 35%, transparent), var(--tw-shadow);
+}
+.tree-work-root .task-card.priority-high:not(.in-progress):not(.completed):hover {
+  border-color: var(--tw-error);
+  box-shadow: 0 0 0 1.5px var(--tw-error), var(--tw-shadow);
+}
+
+/* In-progress priority cards */
+.tree-work-root .task-card.in-progress.priority-low {
+  border-color: color-mix(in srgb, var(--tw-accent) 70%, var(--tw-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tw-accent) 30%, transparent), var(--tw-shadow);
+}
+.tree-work-root .task-card.in-progress.priority-medium {
+  border-color: color-mix(in srgb, var(--tw-error) 50%, var(--tw-accent));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tw-error) 35%, transparent), var(--tw-shadow);
+}
+.tree-work-root .task-card.in-progress.priority-high {
+  border-color: var(--tw-error);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--tw-error) 45%, transparent), var(--tw-shadow);
+}
+.tree-work-root .checkbox.is-doing {
+  background: var(--tw-accent-soft);
+  border-color: var(--tw-accent);
+  color: var(--tw-accent-text);
+}
+.tree-work-root .task-main-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.tree-work-root .priority-toggle {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--tw-border);
+  border-radius: 5px;
+  background: var(--tw-canvas);
+  color: var(--tw-muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background-color .15s;
+}
+.tree-work-root .priority-toggle:hover:not(:disabled) {
+  border-color: var(--tw-accent-text);
+  background: var(--tw-accent-soft);
+}
+.tree-work-root .priority-toggle.priority-low {
+  color: var(--tw-muted);
+}
+.tree-work-root .priority-toggle.priority-medium {
+  color: color-mix(in srgb, var(--tw-error) 70%, var(--tw-text));
+  border-color: color-mix(in srgb, var(--tw-error) 45%, var(--tw-border));
+  background: color-mix(in srgb, var(--tw-error) 8%, var(--tw-canvas));
+}
+.tree-work-root .priority-toggle.priority-high {
+  color: var(--tw-error);
+  border-color: color-mix(in srgb, var(--tw-error) 60%, var(--tw-border));
+  background: var(--tw-error-soft);
+}
+.tree-work-root .task-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  padding-left: 31px;
+}
+.tree-work-root .task-badge {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  border-radius: 4px;
+  border: 1px solid var(--tw-border);
+  padding: 2px 6px;
+  background: var(--tw-canvas);
+  color: var(--tw-text);
+  box-shadow: none;
+}
+.tree-work-root .task-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  background-color: var(--tw-canvas);
+  border-color: var(--tw-border);
+  color: var(--tw-muted);
+}
+.tree-work-root .task-tag-pill:hover {
+  border-color: var(--tw-accent-text);
+  color: var(--tw-accent-text);
+  background-color: var(--tw-accent-soft);
+}
 .tree-work-root .task-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 13px;
+  margin-top: 10px;
   padding-left: 31px;
   gap: 8px;
 }
@@ -241,6 +350,9 @@
 }
 .tree-work-root .task-state.is-done {
   color: var(--tw-success);
+}
+.tree-work-root .task-state.is-doing {
+  color: var(--tw-accent-text);
 }
 .tree-work-root .branch-toggle {
   display: grid;
@@ -252,15 +364,18 @@
   border: 1px solid var(--tw-border);
   border-radius: 5px;
   background: var(--tw-canvas);
-  color: var(--tw-text);
+  color: var(--tw-muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background-color .15s;
 }
 .tree-work-root .branch-toggle:hover:not(:disabled) {
   background: var(--tw-accent-soft);
   border-color: var(--tw-accent-text);
   color: var(--tw-accent-text);
 }
-.tree-work-root .branch-toggle[aria-expanded=true] svg {
-  transform: rotate(90deg);
+.tree-work-root .branch-toggle[aria-expanded=false] {
+  color: var(--tw-accent-text);
+  border-color: color-mix(in srgb, var(--tw-accent-text) 50%, var(--tw-border));
 }
 .tree-work-root .hidden-count {
   display: block;
@@ -275,6 +390,24 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.tree-work-root .edit-task {
+  width: 27px;
+  height: 27px;
+  background: transparent;
+  border: 1px solid var(--tw-border);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tw-muted);
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background-color .15s;
+}
+.tree-work-root .edit-task:hover:not(:disabled) {
+  background: var(--tw-accent-soft);
+  color: var(--tw-accent-text);
+  border-color: var(--tw-accent-text);
 }
 .tree-work-root .delete-task {
   width: 27px;
@@ -393,6 +526,23 @@
   color: var(--tw-text);
   background: var(--tw-surface);
   font-size: 14px;
+}
+.tree-work-root dialog select {
+  width: 100%;
+  border: 1px solid var(--tw-border);
+  border-radius: 6px;
+  padding: 11px 12px;
+  color: var(--tw-text);
+  background: var(--tw-surface);
+  font-size: 14px;
+}
+.tree-work-root .dialog-row {
+  display: flex;
+  gap: 12px;
+}
+.tree-work-root .dialog-field {
+  flex: 1;
+  min-width: 0;
 }
 .tree-work-root dialog input::placeholder {
   color: var(--tw-muted);
@@ -767,5 +917,132 @@
 .tree-work-root .tree-work-textarea:focus {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* Filter bar & contextual path styling */
+.tree-work-root .tree-work-header {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  pointer-events: none;
+  z-index: 10;
+}
+.tree-work-root .filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--tw-surface);
+  border: 1px solid var(--tw-border);
+  box-shadow: var(--tw-shadow);
+  border-radius: 7px;
+  pointer-events: auto;
+  max-width: 100%;
+}
+.tree-work-root .filter-header-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tw-text);
+  margin-right: 4px;
+}
+.tree-work-root .filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.tree-work-root .filter-group-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tw-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: 2px;
+}
+.tree-work-root .filter-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--tw-border);
+  margin: 0 4px;
+}
+.tree-work-root .filter-pill {
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--tw-border);
+  background: var(--tw-canvas);
+  color: var(--tw-muted);
+  line-height: 1.3;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.tree-work-root .filter-pill:hover:not(:disabled) {
+  border-color: var(--tw-accent-text);
+  color: var(--tw-accent-text);
+  background: var(--tw-accent-soft);
+}
+.tree-work-root .filter-pill.active {
+  background: var(--tw-accent);
+  border-color: var(--tw-accent);
+  color: var(--tw-on-accent);
+  font-weight: 600;
+}
+.tree-work-root .filter-pill.filter-tag {
+  font-family: inherit;
+}
+.tree-work-root .clear-filters-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px dashed color-mix(in srgb, var(--tw-error) 60%, var(--tw-border));
+  background: color-mix(in srgb, var(--tw-error) 8%, var(--tw-canvas));
+  color: var(--tw-error);
+  cursor: pointer;
+  margin-left: 4px;
+}
+.tree-work-root .clear-filters-button:hover {
+  border-style: solid;
+  border-color: var(--tw-error);
+  background: var(--tw-error-soft);
+}
+.tree-work-root .task-context-pill {
+  color: var(--tw-muted);
+  border-style: dashed;
+  background: transparent;
+}
+.tree-work-root .task-card.context-only {
+  opacity: 0.72;
+  border-style: dashed;
+}
+.tree-work-root .task-card.context-only:hover {
+  opacity: 1;
+}
+.tree-work-root .empty-filter-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--tw-muted);
+  gap: 12px;
+}
+.tree-work-root .empty-filter-state p {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
 }
 

@@ -234,15 +234,14 @@ export default function TextView({
         const val = target.value;
         const lineStart = val.lastIndexOf('\n', start - 1) + 1;
         const currentLine = val.substring(lineStart, start);
-        const match = currentLine.match(/^( *)- \[([ xX])\] (.*)$/);
-
-        if (match) {
+        // Check if legacy checklist item
+        const checklistMatch = currentLine.match(/^( *)- \[([ xX])\] (.*)$/);
+        if (checklistMatch) {
           e.preventDefault();
-          const indent = match[1];
-          const taskContent = match[3];
+          const indent = checklistMatch[1];
+          const taskContent = checklistMatch[3];
 
           if (taskContent.trim() === '') {
-            // Empty checklist line: unindent or clear checkbox prefix
             const next = val.substring(0, lineStart) + indent + val.substring(start);
             setText(next);
             setSaved(false);
@@ -251,7 +250,6 @@ export default function TextView({
               target.selectionStart = target.selectionEnd = lineStart + indent.length;
             });
           } else {
-            // New checklist item with same indent
             const insert = `\n${indent}- [ ] `;
             const next = val.substring(0, start) + insert + val.substring(end);
             setText(next);
@@ -261,6 +259,38 @@ export default function TextView({
               target.selectionStart = target.selectionEnd = start + insert.length;
             });
           }
+          return;
+        }
+
+        // YAML list item or indented line continuation
+        const listMatch = currentLine.match(/^( *)- (.+)$/);
+        const indentMatch = currentLine.match(/^( +)/);
+        if (listMatch) {
+          e.preventDefault();
+          const indent = listMatch[1];
+          const insert = `\n${indent}  `;
+          const next = val.substring(0, start) + insert + val.substring(end);
+          setText(next);
+          setSaved(false);
+          validate(next);
+          window.requestAnimationFrame(() => {
+            target.selectionStart = target.selectionEnd = start + insert.length;
+          });
+          return;
+        }
+
+        if (indentMatch) {
+          e.preventDefault();
+          const indent = indentMatch[1];
+          const insert = `\n${indent}`;
+          const next = val.substring(0, start) + insert + val.substring(end);
+          setText(next);
+          setSaved(false);
+          validate(next);
+          window.requestAnimationFrame(() => {
+            target.selectionStart = target.selectionEnd = start + insert.length;
+          });
+          return;
         }
       }
     }
@@ -339,7 +369,7 @@ export default function TextView({
           onKeyDown={handleKeyDown}
           onScroll={handleScroll}
           spellCheck={false}
-          placeholder="- [ ] My first task"
+          placeholder="- title: My first task&#10;  status: open&#10;  priority: medium&#10;  tag: work&#10;  collapsed: false"
           aria-label="Tree file content"
         />
       </div>

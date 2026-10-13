@@ -4,13 +4,14 @@ import NamedElement from './NamedElement.jsx';
 const PADDING = 24;
 const MAX_ZOOM = 2;
 
-export default function TreeCanvas({ children, ready, controls, branchControls, navigationKey = 'main', navigationControls }) {
+export default function TreeCanvas({ children, ready, controls, branchControls, navigationKey = 'main', navigationControls, filterControls }) {
   const viewport = useRef(null);
   const content = useRef(null);
   const toolbar = useRef(null);
+  const header = useRef(null);
   const pendingAnchor = useRef(null);
   const previousNavigation = useRef(navigationKey);
-  const [size, setSize] = useState({ width: 0, height: 0, contentWidth: 0, contentHeight: 0, bottom: 80 });
+  const [size, setSize] = useState({ width: 0, height: 0, contentWidth: 0, contentHeight: 0, top: 24, bottom: 80 });
   const [manualZoom, setManualZoom] = useState(1);
   const [fitting, setFitting] = useState(false);
 
@@ -26,11 +27,13 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
     let frameId = 0;
     const measure = () => {
       if (!viewport.current || !content.current || !toolbar.current) return;
+      const topOffset = header.current ? header.current.offsetHeight + 24 : PADDING;
       const next = {
         width: viewport.current.clientWidth,
         height: viewport.current.clientHeight,
         contentWidth: content.current.offsetWidth,
         contentHeight: content.current.offsetHeight,
+        top: topOffset,
         bottom: toolbar.current.offsetHeight + 32,
       };
       setSize(previous => Object.keys(next).every(key => previous[key] === next[key]) ? previous : next);
@@ -44,6 +47,7 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
     observer.observe(viewport.current);
     observer.observe(content.current);
     observer.observe(toolbar.current);
+    if (header.current) observer.observe(header.current);
     measure();
     return () => {
       window.cancelAnimationFrame(frameId);
@@ -51,18 +55,19 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
     };
   }, []);
 
+  const topPad = size.top || PADDING;
   const fitZoom = Math.max(0.0001, Math.min(1,
     Math.max(1, size.width - PADDING * 2) / Math.max(1, size.contentWidth),
-    Math.max(1, size.height - size.bottom - PADDING * 2) / Math.max(1, size.contentHeight),
+    Math.max(1, size.height - topPad - size.bottom - PADDING) / Math.max(1, size.contentHeight),
   ));
   const minZoom = Math.min(0.1, fitZoom);
   const zoom = fitting ? fitZoom : manualZoom;
   const hasHorizontalOverflow = size.width > 0 && size.contentWidth * zoom + PADDING * 2 > size.width;
-  const hasVerticalOverflow = size.height > 0 && size.contentHeight * zoom + PADDING * 2 + size.bottom > size.height;
+  const hasVerticalOverflow = size.height > 0 && size.contentHeight * zoom + topPad + size.bottom > size.height;
   const stageWidth = Math.max(size.width, size.contentWidth * zoom + PADDING * 2);
-  const stageHeight = Math.max(size.height, size.contentHeight * zoom + PADDING * 2 + size.bottom);
+  const stageHeight = Math.max(size.height, size.contentHeight * zoom + topPad + size.bottom);
   const left = (stageWidth - size.contentWidth * zoom) / 2;
-  const top = (stageHeight - size.bottom - size.contentHeight * zoom) / 2;
+  const top = topPad + Math.max(0, (stageHeight - topPad - size.bottom - size.contentHeight * zoom) / 2);
 
   // Keep the same point of the tree under the viewport center when zooming.
   useLayoutEffect(() => {
@@ -91,6 +96,7 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
   const percentage = zoom < 0.1 ? `${Number((zoom * 100).toFixed(1))}%` : `${Math.round(zoom * 100)}%`;
 
   return <>
+    {filterControls && <div ref={header} className="tree-work-header">{filterControls}</div>}
     <NamedElement as="div" ref={viewport} className="tree-canvas" tabIndex={0} role="region" label="Task tree. Scroll to explore branches.">
       <div
         className="tree-stage"

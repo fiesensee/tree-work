@@ -35,20 +35,37 @@ Tree Work registers the `tree` extension with its custom file view using Obsidia
 
 ## File format
 
-```text
-- [ ] Launch my project
-  - [x] Define the idea
-  - [ ] Build the first version
-    - [x] Sketch the layout
-    - [ ] Build the interface
+```yaml
+- title: Launch my project
+  status: doing
+  priority: high
+  tag: startup
+  collapsed: false
+  children:
+    - title: Define the idea
+      status: done
+      priority: high
+      tag: planning
+      collapsed: false
+    - title: Build the first version
+      status: doing
+      priority: high
+      tag: dev
+      collapsed: false
 ```
 
-- One task per line; **two spaces per nesting level**.
-- `- [ ]` means open; `- [x]` means completed. Uppercase `X` is accepted.
-- Titles are plain text, 1–500 characters, without tabs or line breaks.
+- Each `.tree` file is stored as **standard YAML**.
+- **Attributes on each task:**
+  - `title`: Plain text, 1–500 characters, single line.
+  - `status`: `open` (base state), `doing`, or `done`.
+  - `priority`: `low`, `medium`, or `high`.
+  - `tag`: Free text field for tags and categories (e.g. `urgent`, `v1.0`).
+  - `collapsed`: `true` or `false` (persists GUI branch folding across sessions).
+  - `children`: List of nested subtasks (omitted when empty).
 - UTF-8, LF, CRLF, a UTF-8 BOM, and blank lines are supported.
 - Up to 10,000 tasks and 100 nesting levels.
-- Parents can be completed manually only after every child is complete.
+- **Backwards compatibility:** Older markdown checklist `.tree` files (`- [ ] Task`) are automatically detected and upgraded to YAML when opened.
+- Parents can be marked `done` manually only after every child is complete. Setting status to `doing` is allowed while subtasks are open.
 - Reopening a task or adding an unfinished child reopens all completed ancestors, even outside the focused view.
 
 You can quickly reorganize, rename, or bulk edit tasks by switching to the built-in text view, or by editing the file in an external editor. Invalid files display an error and are never silently replaced with an empty tree.
@@ -59,11 +76,11 @@ You can quickly reorganize, rename, or bulk edit tasks by switching to the built
 - Click the **Switch to text view** button in the top-right pane header (file-text icon) or in the bottom toolbar.
 - Alternatively, run **Tree Work: Switch between tree and text view** in the command palette.
 - In text view, click **Switch to tree view** to save your edits and return to the visual graph.
-- If a `.tree` file contains syntax errors (such as mismatched indentation), the view provides a direct **Switch to text view to fix file** button so you can resolve issues immediately without opening another editor.
+- If a `.tree` file contains syntax errors, the view provides a direct **Switch to text view to fix file** button so you can resolve issues immediately without opening another editor.
 
 ### Text view editor features
-- **Checklist shortcuts:** Pressing `Enter` on a task line automatically continues with `- [ ] `; pressing `Enter` on an empty checkbox line clears the checkbox prefix.
-- **Indentation:** Pressing `Tab` inserts two spaces (or indents selected lines); `Shift+Tab` outdents lines.
+- **YAML editor:** Edit full task trees with YAML syntax.
+- **Indentation:** Pressing `Tab` inserts two spaces (or indents selected lines); `Shift+Tab` outdents lines. Pressing `Enter` automatically maintains indentation.
 - **Instant save:** Press `Ctrl+S` (or `Cmd+S` on macOS) or click **Save** to save immediately.
 - **Live validation:** Live indicator shows whether the current text conforms to the `.tree` format and reports line-specific syntax errors in real time.
 - **Line numbers:** Line counter helps quickly locate lines referenced in error messages.
@@ -71,13 +88,17 @@ You can quickly reorganize, rename, or bulk edit tasks by switching to the built
 ### Graph controls
 
 - **+** on My work adds a top-level task; **+** on a task adds a child.
-- Checkboxes complete/reopen tasks. A lock means unfinished subtasks remain.
+- **Checkbox status cycle:** Click the main checkbox to cycle through status: **open** → **doing** → **done** → **open**.
+  - `open`: Empty checkbox with neutral card styling.
+  - `doing`: Accent checkbox with in-progress dot icon and card accent highlight.
+- **Priority chevron cycle:** Click the chevron button in the top-right corner of any task card to cycle through priorities: **low** (1 chevron) → **medium** (2 stacked chevrons) → **high** (3 stacked chevrons) → **low**. Task card borders become increasingly red as priority increases. New tasks always start in `low` priority.
+- **Edit (pencil)** opens the task dialog to edit the task title and tag. Both create and edit dialogs stay clean and focused on name and tag, while status and priority cycle directly on the card.
 - **− / +** zoom the graph. The percentage resets to **100%**. **Fit all** fits the visible branches and follows changes in the pane size or tree.
-- Chevrons collapse/expand branches; folded tasks show their hidden descendant count. **Collapse all / Expand all** operate on the current view.
+- **Folder branch toggle:** The folder button collapses and expands subtask branches (closed folder when collapsed, open folder when expanded); folded tasks show their hidden descendant count. **Collapse state is saved directly in the file**, preserving your layout across reloads.
+- **Filter bar:** Filter tasks by **Status** (Open, Doing, Done), **Priority** (Low, Medium, High), and **Tags** (dynamically listed from the file). Filtering keeps the tree hierarchy fully intact—preserving ancestor paths for context, auto-expanding folded paths to matches, and including all child items of matching tasks.
+- **Collapse all / Expand all** operate on the current view and persist the fold state to disk.
 - Click a title or card background to make that task the visible root. **Back to all tasks** restores My work. Focus changes fit the visible tree automatically.
 - Task dialogs support Enter to submit and Escape to cancel.
-
-Focus and collapse are temporary view state. They reset when the file is reopened or reloaded and are never written to the task file. Different panes have independent view state.
 
 ## Saving and external changes
 
