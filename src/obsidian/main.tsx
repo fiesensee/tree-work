@@ -71,6 +71,9 @@ class TreeWorkView extends FileView {
         onRegisterAppApi={(api: AppApi | null) => {
           this.appApi = api;
         }}
+        onOpenNote={(target: string) => {
+          void this.app.workspace.openLinkText(target, this.file?.path ?? '', false);
+        }}
       />
     );
   }

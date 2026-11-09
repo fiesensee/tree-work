@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { changeTree, deleteNode, getErrorMessage, getNode, removeCompleted, statistics, setBranchesCollapsed, getAllTags, filterTree } from '../shared/tree.js';
+import { changeTree, collectIds, createNode, deleteNode, findPathById, getErrorMessage, getNode, isSettled, removeCompleted, statistics, setBranchesCollapsed, getAllTags, filterTree, filterBranch, noteLinkTarget, VALID_EFFORTS } from '../shared/tree.js';
 import TreeCanvas from './TreeCanvas.jsx';
 import NamedElement from './NamedElement.jsx';
 import TextView from './TextView.jsx';
@@ -28,6 +28,10 @@ function Icon({ name, size = 18, ...props }) {
     chevronUp: <path d="m18 15-6-6-6 6"/>,
     chevronsUp2: <><path d="m18 11-6-6-6 6"/><path d="m18 17-6-6-6 6"/></>,
     chevronsUp3: <><path d="m18 8-6-6-6 6"/><path d="m18 13-6-6-6 6"/><path d="m18 18-6-6-6 6"/></>,
+    pause: <><rect x="7" y="5" width="3.5" height="14" rx="1"/><rect x="13.5" y="5" width="3.5" height="14" rx="1"/></>,
+    clock: <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></>,
+    note: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>;
 }
@@ -43,6 +47,8 @@ function PriorityIcon({ priority, size = 15 }) {
   if (priority === 'medium') return <Icon name="chevronsUp2" size={size}/>;
   return <Icon name="chevronUp" size={size}/>;
 }
+
+const EFFORT_LABELS = { xs: '≤15 min', s: '≤45 min', m: '≤2 h', l: '>2 h' };
 
 function adjustPathAfterDelete(targetPath, deletedPath) {
   if (!targetPath) return null;
@@ -78,6 +84,7 @@ function TaskBranch({
   onCollapse,
   onFocus,
   isFocusRoot = false,
+  onOpenNote,
 }) {
   const subtreeId = useId();
   const card = useRef(null);
@@ -92,14 +99,17 @@ function TaskBranch({
   const hiddenCount = isCollapsed ? statistics(node.children).total : 0;
   const isDone = node.status === 'done';
   const isDoing = node.status === 'doing';
+  const isParked = node.status === 'parked';
   const childrenDone = node.children.filter(child => child.status === 'done' || child.done).length;
-  const blocked = node.children.some(child => child.status !== 'done' && !child.done);
+  const blocked = !node.children.every(isSettled);
+  const noteTarget = noteLinkTarget(node.note);
+  const hasMeta = isContextOnly || Boolean(node.tag) || Boolean(node.effort) || Boolean(node.due) || Boolean(noteTarget);
 
   return <li className="branch">
     <article
       ref={card}
       tabIndex={isFocusRoot ? -1 : undefined}
-      className={`task-card priority-${node.priority || 'low'} ${isDone ? 'completed' : ''} ${isDoing ? 'in-progress' : ''} ${isContextOnly ? 'context-only' : ''} ${isFocusRoot ? 'focused-root' : 'can-focus'}`}
+      className={`task-card priority-${node.priority || 'low'} ${isDone ? 'completed' : ''} ${isDoing ? 'in-progress' : ''} ${isParked ? 'parked' : ''} ${isContextOnly ? 'context-only' : ''} ${isFocusRoot ? 'focused-root' : 'can-focus'}`}
       onClick={event => {
         if (!isFocusRoot && !event.target.closest('button')) onFocus(currentPath);
       }}
@@ -110,7 +120,7 @@ function TaskBranch({
           role="checkbox"
           aria-checked={isDone}
           label={
-            isDone
+            isDone || isParked
               ? `Reopen ${node.title} (set to open)`
               : isDoing
                 ? (blocked ? `Set ${node.title} to open (subtasks incomplete)` : `Complete ${node.title} (set to done)`)
@@ -119,7 +129,7 @@ function TaskBranch({
           disabled={busy}
           onClick={() => onToggle(currentPath)}
         >
-          {isDone ? <Icon name="check" size={15}/> : isDoing ? <Icon name="circleDot" size={13}/> : null}
+          {isDone ? <Icon name="check" size={15}/> : isDoing ? <Icon name="circleDot" size={13}/> : isParked ? <Icon name="pause" size={12}/> : null}
         </NamedElement>
         {isFocusRoot ? (
           <span className="task-title">{node.title}</span>
@@ -147,7 +157,7 @@ function TaskBranch({
         </div>
       </div>
 
-      {(isContextOnly || Boolean(node.tag)) && (
+      {hasMeta && (
         <div className="task-meta">
           {isContextOnly && (
             <span className="task-badge task-context-pill" title="Shown for hierarchy context (subtask matches filter)">
@@ -164,6 +174,28 @@ function TaskBranch({
               <span>{node.tag}</span>
             </span>
           )}
+          {Boolean(node.effort) && (
+            <span className="task-badge task-effort-pill" title={`Effort: ${EFFORT_LABELS[node.effort] || node.effort}`}>
+              <Icon name="clock" size={11}/>
+              <span>{node.effort}</span>
+            </span>
+          )}
+          {Boolean(node.due) && (
+            <span className="task-badge task-due-pill" title={`Due ${node.due}`}>
+              <Icon name="calendar" size={11}/>
+              <span>{node.due}</span>
+            </span>
+          )}
+          {Boolean(noteTarget) && (
+            <NamedElement
+              className="task-badge task-note-pill"
+              label={`Open note ${noteTarget}`}
+              onClick={event => { event.stopPropagation(); onOpenNote?.(noteTarget); }}
+            >
+              <Icon name="note" size={11}/>
+              <span>{noteTarget.split('/').pop()}</span>
+            </NamedElement>
+          )}
         </div>
       )}
 
@@ -171,7 +203,9 @@ function TaskBranch({
         <span className={`task-state ${isDone ? 'is-done' : ''} ${isDoing ? 'is-doing' : ''}`}>
           {isDone
             ? 'Completed'
-            : isDoing
+            : isParked
+              ? 'Parked'
+              : isDoing
               ? (node.children.length ? `Doing (${childrenDone}/${node.children.length} done)` : 'Doing')
               : node.children.length
                 ? `${childrenDone}/${node.children.length} subtasks done`
@@ -206,6 +240,7 @@ function TaskBranch({
           onDelete={onDelete}
           onCollapse={onCollapse}
           onFocus={onFocus}
+          onOpenNote={onOpenNote}
         />
       ))}
     </ul>}
@@ -246,6 +281,14 @@ function TaskDialog({ parent, initialNode, onClose, onSubmit, busy, error }) {
   const isEditing = Boolean(initialNode);
   const [title, setTitle] = useState(initialNode?.title || '');
   const [tag, setTag] = useState(initialNode?.tag || '');
+  const [status, setStatus] = useState(initialNode?.status || 'open');
+  const [effort, setEffort] = useState(initialNode?.effort || '');
+  const [due, setDue] = useState(initialNode?.due || '');
+  const [note, setNote] = useState(initialNode?.note || '');
+  const statusId = useId();
+  const effortId = useId();
+  const dueId = useId();
+  const noteId = useId();
 
   useEffect(() => {
     dialog.current?.showModal();
@@ -259,6 +302,10 @@ function TaskDialog({ parent, initialNode, onClose, onSubmit, busy, error }) {
         onSubmit({
           title: title.trim(),
           tag: tag.trim(),
+          status,
+          effort,
+          due,
+          note: note.trim(),
         });
       }
     }}>
@@ -274,6 +321,32 @@ function TaskDialog({ parent, initialNode, onClose, onSubmit, busy, error }) {
 
       <label htmlFor={tagId}>Tag</label>
       <input id={tagId} value={tag} onChange={event => setTag(event.target.value)} maxLength={100} placeholder="e.g. feature, personal, release" disabled={busy}/>
+
+      <div className="dialog-row">
+        {isEditing && <div className="dialog-field">
+          <label htmlFor={statusId}>Status</label>
+          <select id={statusId} value={status} onChange={event => setStatus(event.target.value)} disabled={busy}>
+            <option value="open">Open</option>
+            <option value="doing">Doing</option>
+            <option value="done">Done</option>
+            <option value="parked">Parked</option>
+          </select>
+        </div>}
+        <div className="dialog-field">
+          <label htmlFor={effortId}>Effort</label>
+          <select id={effortId} value={effort} onChange={event => setEffort(event.target.value)} disabled={busy}>
+            <option value="">Not set</option>
+            {VALID_EFFORTS.map(value => <option key={value} value={value}>{value} ({EFFORT_LABELS[value]})</option>)}
+          </select>
+        </div>
+        <div className="dialog-field">
+          <label htmlFor={dueId}>Due</label>
+          <input id={dueId} type="date" value={due} onChange={event => setDue(event.target.value)} disabled={busy}/>
+        </div>
+      </div>
+
+      <label htmlFor={noteId}>Note</label>
+      <input id={noteId} value={note} onChange={event => setNote(event.target.value)} maxLength={500} placeholder="[[Projects/My note]]" disabled={busy}/>
 
       {error && <p className="form-error" role="alert">{error}</p>}
       <div className="dialog-actions">
@@ -294,8 +367,10 @@ export default function App({
   onModeChange,
   onRegisterTextApi,
   onRegisterAppApi,
+  onOpenNote,
 }) {
   const [data, setData] = useState(null);
+  const [externalChange, setExternalChange] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(null);
@@ -342,7 +417,7 @@ export default function App({
     if (!focusPath) return null;
     const node = getNode(tree, focusPath);
     if (!node) return null;
-    const filtered = filterTree([node], filters, focusPath);
+    const filtered = filterBranch(tree, focusPath, filters);
     return filtered.length > 0 ? filtered[0] : null;
   }, [tree, focusPath, filters]);
 
@@ -408,13 +483,31 @@ export default function App({
   }
 
   useEffect(() => {
-    const unsubscribe = storage.subscribe?.(() => {
-      setError('This file changed outside this view. Reload file before making more changes.');
-      setSaved(false);
-    });
+    const unsubscribe = storage.subscribe?.(() => setExternalChange(count => count + 1));
     void reload();
     return unsubscribe;
   }, [storage]);
+
+  // The file changed on disk (sync client, assistant, another pane). Reload in place and
+  // keep the focused branch, unless a dialog or save is in flight.
+  useEffect(() => {
+    if (!externalChange || mode !== 'tree') return;
+    if (working.current || adding !== null || editing !== null || deleting !== null || cleaningUp) {
+      setError('This file changed outside this view. Reload file before making more changes.');
+      setSaved(false);
+      return;
+    }
+    const focusId = focusPath ? getNode(tree, focusPath)?.id : null;
+    working.current = true;
+    setBusy(true);
+    storage.read()
+      .then(value => {
+        setData(value); setError(''); setSaved(false);
+        setFocusPath(focusId ? findPathById(value.tree, focusId) : null);
+      })
+      .catch(failure => setError(getErrorMessage(failure)))
+      .finally(() => { working.current = false; setBusy(false); });
+  }, [externalChange]);
 
   useEffect(() => {
     if (mode === 'tree') {
@@ -435,7 +528,7 @@ export default function App({
   function toggle(path) {
     void save(changeTree(tree, path, node => {
       const current = node.status || (node.done ? 'done' : 'open');
-      const blocked = node.children && node.children.some(child => child.status !== 'done' && !child.done);
+      const blocked = node.children && !node.children.every(isSettled);
 
       if (current === 'open') {
         node.status = 'doing';
@@ -449,6 +542,7 @@ export default function App({
           node.done = true;
         }
       } else {
+        // done or parked
         node.status = 'open';
         node.done = false;
       }
@@ -467,17 +561,13 @@ export default function App({
     }));
   }
 
-  async function add({ title, tag }) {
+  async function add({ title, tag, effort, due, note }) {
     try {
-      const node = {
-        title,
-        status: 'open',
-        priority: 'low',
-        tag: tag || '',
-        collapsed: false,
-        done: false,
-        children: [],
-      };
+      const fields = {};
+      if (effort) fields.effort = effort;
+      if (due) fields.due = due;
+      if (note) fields.note = note;
+      const node = createNode({ title, tag: tag || '', ...fields }, collectIds(tree));
       const next = adding.length ? changeTree(tree, adding, parent => {
         parent.collapsed = false; // Reveal parent when child is added
         parent.children.push(node);
@@ -488,12 +578,17 @@ export default function App({
     } catch (failure) { setError(getErrorMessage(failure)); }
   }
 
-  async function editTask({ title, tag }) {
+  async function editTask({ title, tag, status, effort, due, note }) {
     if (!editing) return;
     try {
       const next = changeTree(tree, editing.path, target => {
         target.title = title;
         target.tag = tag;
+        target.status = status;
+        for (const [field, value] of Object.entries({ effort, due, note })) {
+          if (value) target[field] = value;
+          else delete target[field];
+        }
       });
       if (await save(next)) {
         setEditing(null);
@@ -587,6 +682,12 @@ export default function App({
           disabled={busy}
           onClick={() => setFilterStatus(prev => prev === 'done' ? null : 'done')}
         >Done</button>
+        <button
+          type="button"
+          className={`filter-pill ${filterStatus === 'parked' ? 'active' : ''}`}
+          disabled={busy}
+          onClick={() => setFilterStatus(prev => prev === 'parked' ? null : 'parked')}
+        >Parked</button>
       </div>
       <div className="filter-divider"/>
       <div className="filter-group">
@@ -705,6 +806,7 @@ export default function App({
               onDelete={handleDeleteRequest}
               onCollapse={toggleBranch}
               onFocus={focusTask}
+              onOpenNote={onOpenNote}
               isFocusRoot
             />
           </ul> : focusPath && !displayFocusedNode ? (
@@ -751,6 +853,7 @@ export default function App({
                 onDelete={handleDeleteRequest}
                 onCollapse={toggleBranch}
                 onFocus={focusTask}
+                onOpenNote={onOpenNote}
               />
             ))}
           </ul>}

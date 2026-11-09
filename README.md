@@ -36,36 +36,48 @@ Tree Work registers the `tree` extension with its custom file view using Obsidia
 ## File format
 
 ```yaml
-- title: Launch my project
+- id: k3f9q2ma
+  title: Launch my project
   status: doing
   priority: high
   tag: startup
   collapsed: false
+  created: 2026-03-02
+  updated: 2026-11-08T20:41
   children:
-    - title: Define the idea
-      status: done
-      priority: high
-      tag: planning
+    - id: p7x2c8vd
+      title: Write the landing page copy
+      status: open
+      priority: medium
+      tag: ""
       collapsed: false
-    - title: Build the first version
-      status: doing
-      priority: high
-      tag: dev
-      collapsed: false
+      note: "[[Projects/Landing page]]"
+      effort: s
+      due: 2026-12-01
+      created: 2026-03-02
+      updated: 2026-11-08T20:41
 ```
 
 - Each `.tree` file is stored as **standard YAML**.
 - **Attributes on each task:**
+  - `id`: 8 lowercase Crockford base32 characters, always starting with a letter. Assigned automatically and stable for the task's lifetime, also when it moves. Other tools (such as an assistant) use it to refer to tasks.
   - `title`: Plain text, 1–500 characters, single line.
-  - `status`: `open` (base state), `doing`, or `done`.
+  - `status`: `open` (base state), `doing`, `done`, or `parked` (consciously paused).
   - `priority`: `low`, `medium`, or `high`.
   - `tag`: Free text field for tags and categories (e.g. `urgent`, `v1.0`).
   - `collapsed`: `true` or `false` (persists GUI branch folding across sessions).
+  - `created`: ISO date, set when the task is created.
+  - `updated`: ISO local date-time with minutes, set on every change to the task's title, status, priority, tag, effort, due date, note or unknown fields. Collapsing a branch doesn't count.
+  - `note` (optional): wikilink to an Obsidian note, e.g. `"[[Blog/Myst Online]]"`. Shown as a badge that opens the note.
+  - `effort` (optional): `xs` (≤15 min), `s` (≤45 min), `m` (≤2 h) or `l` (more).
+  - `due` (optional): ISO date, for rare hard deadlines.
   - `children`: List of nested subtasks (omitted when empty).
+- **Unknown fields are kept.** Any other key on a task is written back unchanged on save, so newer format additions or other tools' data are never lost.
+- **Migration:** when a file without ids or timestamps is opened, every task gets an `id`, `created` (today) and `updated` (now), and the file is written back once. Duplicate ids (e.g. from copy and paste in the text view) are reassigned on the later task.
 - UTF-8, LF, CRLF, a UTF-8 BOM, and blank lines are supported.
 - Up to 10,000 tasks and 100 nesting levels.
 - **Backwards compatibility:** Older markdown checklist `.tree` files (`- [ ] Task`) are automatically detected and upgraded to YAML when opened.
-- Parents can be marked `done` manually only after every child is complete. Setting status to `doing` is allowed while subtasks are open.
+- Parents can be marked `done` manually only after every child is `done` or `parked`. Setting status to `doing` is allowed while subtasks are open.
 - Reopening a task or adding an unfinished child reopens all completed ancestors, even outside the focused view.
 
 You can quickly reorganize, rename, or bulk edit tasks by switching to the built-in text view, or by editing the file in an external editor. Invalid files display an error and are never silently replaced with an empty tree.
@@ -102,7 +114,7 @@ You can quickly reorganize, rename, or bulk edit tasks by switching to the built
 
 ## Saving and external changes
 
-Changes save immediately via `Vault.process`, with the source text checked inside the atomic update. If a file has changed in another pane or editor, saving is rejected until you reload. Other open Tree Work panes display a reload notice when the file changes. The reload also closes any add-task dialog because file edits may have changed task paths.
+Changes save immediately via `Vault.process`, with the source text checked inside the atomic update. If a file has changed in another pane or editor, saving is rejected until you reload. When the file changes on disk (another pane, a sync client, an assistant), the graph view reloads automatically and keeps the focused branch by task id. If a dialog is open or a save is in progress, it shows a reload notice instead. The text view keeps its own reload notice so unsaved text is never lost.
 
 Each view's storage is bound to its own vault file. Renaming a file does not redirect edits elsewhere, and closing a view unregisters its listeners and React root. Normal vault operations handle file rename/delete and synchronization; Tree Work does not manage sync itself.
 

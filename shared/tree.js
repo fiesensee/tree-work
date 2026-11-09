@@ -5,8 +5,61 @@ export function getErrorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-export const VALID_STATUSES = ['open', 'doing', 'done'];
+export const VALID_STATUSES = ['open', 'doing', 'done', 'parked'];
 export const VALID_PRIORITIES = ['low', 'medium', 'high'];
+export const VALID_EFFORTS = ['xs', 's', 'm', 'l'];
+
+// Fields the plugin understands. Anything else in a task is kept verbatim in `extra`
+// and written back on save, so later format additions (or other tools) are never lost.
+const KNOWN_FIELDS = new Set(['id', 'title', 'status', 'priority', 'tag', 'collapsed', 'created', 'updated', 'note', 'effort', 'due', 'done', 'children']);
+
+// Ids: 8 characters of lowercase Crockford base32. The first character is always a
+// letter so an id can never be read back as a YAML number.
+const ID_ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
+const ID_FIRST = 'abcdefghjkmnpqrstvwxyz';
+const ID_PATTERN = /^[a-z0-9]{8}$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+
+// A child that is done or consciously parked no longer blocks its parent.
+export function isSettled(node) {
+  return node.status === 'done' || node.status === 'parked';
+}
+
+function pad(value) {
+  return String(value).padStart(2, '0');
+}
+
+// Local calendar date, e.g. 2026-11-08.
+export function formatDate(now = new Date()) {
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+// Local date-time with minute precision, e.g. 2026-11-08T20:41.
+export function formatDateTime(now = new Date()) {
+  return `${formatDate(now)}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+function randomIndex(size) {
+  const bytes = new Uint8Array(1);
+  // 256 is a multiple of 32, and rejection keeps the 22-letter first character unbiased.
+  const limit = 256 - (256 % size);
+  do { globalThis.crypto.getRandomValues(bytes); } while (bytes[0] >= limit);
+  return bytes[0] % size;
+}
+
+export function generateId(taken = new Set()) {
+  for (;;) {
+    let id = ID_FIRST[randomIndex(ID_FIRST.length)];
+    for (let index = 1; index < 8; index++) id += ID_ALPHABET[randomIndex(ID_ALPHABET.length)];
+    if (!taken.has(id)) return id;
+  }
+}
+
+function scalarString(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+}
 
 export function validateTree(tree) {
   let count = 0;
@@ -32,7 +85,7 @@ export function validateTree(tree) {
       if (!node.children) node.children = [];
 
       if (!VALID_STATUSES.includes(node.status)) {
-        throw new Error(`Task status must be open, doing, or done (got "${node.status}").`);
+        throw new Error(`Task status must be open, doing, done, or parked (got "${node.status}").`);
       }
       if (!VALID_PRIORITIES.includes(node.priority)) {
         throw new Error(`Task priority must be low, medium, or high (got "${node.priority}").`);
@@ -46,15 +99,41 @@ export function validateTree(tree) {
       if (!Array.isArray(node.children)) {
         throw new Error('Task children must be a list.');
       }
+      validateOptionalFields(node);
       node.done = node.status === 'done';
       visit(node.children, depth + 1);
-      if (node.status === 'done' && node.children.some(child => child.status !== 'done')) {
+      if (node.status === 'done' && !node.children.every(isSettled)) {
         throw new Error('Finish every subtask before completing its parent.');
       }
     }
   }
   visit(tree);
   return tree;
+}
+
+function validateOptionalFields(node) {
+  const label = `Task "${node.title}"`;
+  if (node.id !== undefined && (typeof node.id !== 'string' || !ID_PATTERN.test(node.id))) {
+    throw new Error(`${label}: id must be 8 lowercase letters or digits (got "${node.id}").`);
+  }
+  if (node.created !== undefined && (typeof node.created !== 'string' || !DATE_TIME_PATTERN.test(node.created))) {
+    throw new Error(`${label}: created must be an ISO date like 2026-03-02 (got "${node.created}").`);
+  }
+  if (node.updated !== undefined && (typeof node.updated !== 'string' || !DATE_TIME_PATTERN.test(node.updated))) {
+    throw new Error(`${label}: updated must be an ISO date-time like 2026-11-08T20:41 (got "${node.updated}").`);
+  }
+  if (node.due !== undefined && (typeof node.due !== 'string' || !DATE_PATTERN.test(node.due))) {
+    throw new Error(`${label}: due must be an ISO date like 2026-12-24 (got "${node.due}").`);
+  }
+  if (node.effort !== undefined && !VALID_EFFORTS.includes(node.effort)) {
+    throw new Error(`${label}: effort must be xs, s, m, or l (got "${node.effort}").`);
+  }
+  if (node.note !== undefined && (typeof node.note !== 'string' || /[\r\n]/.test(node.note))) {
+    throw new Error(`${label}: note must be a single-line link such as "[[Folder/Note]]".`);
+  }
+  if (node.extra !== undefined && (!node.extra || typeof node.extra !== 'object' || Array.isArray(node.extra))) {
+    throw new Error(`${label}: unknown fields could not be preserved.`);
+  }
 }
 
 function normalizeNode(raw) {
@@ -69,7 +148,7 @@ function normalizeNode(raw) {
   } else if (raw.done === true) {
     status = 'done';
   } else if (raw.status !== undefined) {
-    throw new Error(`Task status must be open, doing, or done (got "${raw.status}").`);
+    throw new Error(`Task status must be open, doing, done, or parked (got "${raw.status}").`);
   }
 
   let priority = 'low';
@@ -83,7 +162,7 @@ function normalizeNode(raw) {
   const collapsed = Boolean(raw.collapsed);
   const children = Array.isArray(raw.children) ? raw.children.map(normalizeNode) : [];
 
-  return {
+  const node = {
     title,
     status,
     priority,
@@ -92,6 +171,96 @@ function normalizeNode(raw) {
     done: status === 'done',
     children,
   };
+  // Optional fields stay absent when empty, so untouched files keep their shape.
+  for (const field of ['id', 'created', 'updated', 'note', 'effort', 'due']) {
+    const value = scalarString(raw[field]);
+    if (value) node[field] = value;
+  }
+  const extra = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!KNOWN_FIELDS.has(key)) extra[key] = value;
+  }
+  if (Object.keys(extra).length) node.extra = extra;
+  return node;
+}
+
+// Fills in what the format requires but older files lack: a unique id plus created
+// and updated timestamps. Duplicate ids (e.g. from copy and paste in the text view)
+// are reassigned on the later node. Returns a copy and whether anything changed.
+export function ensureIdentity(tree, now = new Date()) {
+  const copy = structuredClone(tree);
+  const taken = new Set();
+  const duplicates = [];
+  let changed = false;
+  function collect(nodes) {
+    for (const node of nodes) {
+      if (node.id && !taken.has(node.id)) taken.add(node.id);
+      else if (node.id) duplicates.push(node);
+      collect(node.children || []);
+    }
+  }
+  collect(copy);
+  for (const node of duplicates) delete node.id;
+  function fill(nodes) {
+    for (const node of nodes) {
+      if (!node.id) {
+        node.id = generateId(taken);
+        taken.add(node.id);
+        changed = true;
+      }
+      if (!node.created) { node.created = formatDate(now); changed = true; }
+      if (!node.updated) { node.updated = formatDateTime(now); changed = true; }
+      fill(node.children || []);
+    }
+  }
+  fill(copy);
+  return { tree: changed ? validateTree(copy) : tree, changed };
+}
+
+export function createNode({ title, tag = '', ...fields }, taken = new Set(), now = new Date()) {
+  return {
+    id: generateId(taken),
+    title,
+    status: 'open',
+    priority: 'low',
+    tag,
+    collapsed: false,
+    done: false,
+    ...fields,
+    created: formatDate(now),
+    updated: formatDateTime(now),
+    children: [],
+  };
+}
+
+// "[[Folder/Note|Alias]]" -> "Folder/Note"; plain text is used as is.
+export function noteLinkTarget(note) {
+  const match = /^\s*\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]\s*$/.exec(note || '');
+  return (match ? match[1] : note || '').trim();
+}
+
+export function collectIds(tree) {
+  const ids = new Set();
+  (function walk(nodes) {
+    for (const node of nodes) {
+      if (node.id) ids.add(node.id);
+      walk(node.children || []);
+    }
+  })(tree);
+  return ids;
+}
+
+export function findPathById(tree, id) {
+  function walk(nodes, path) {
+    for (let index = 0; index < nodes.length; index++) {
+      const here = [...path, index];
+      if (nodes[index].id === id) return here;
+      const found = walk(nodes[index].children || [], here);
+      if (found) return found;
+    }
+    return null;
+  }
+  return walk(tree, []);
 }
 
 function parseLegacyChecklist(text) {
@@ -151,13 +320,23 @@ export function serializeTree(tree) {
   validateTree(tree);
   if (!tree || tree.length === 0) return '';
   function formatNode(node) {
-    const item = {
+    const item = {};
+    if (node.id) item.id = node.id;
+    Object.assign(item, {
       title: node.title.trim(),
       status: node.status || (node.done ? 'done' : 'open'),
       priority: node.priority || 'low',
       tag: typeof node.tag === 'string' ? node.tag.trim() : '',
       collapsed: Boolean(node.collapsed),
-    };
+    });
+    for (const field of ['note', 'effort', 'due', 'created', 'updated']) {
+      if (node[field]) item[field] = node[field];
+    }
+    if (node.extra) {
+      for (const [key, value] of Object.entries(node.extra)) {
+        if (!KNOWN_FIELDS.has(key)) item[key] = value;
+      }
+    }
     if (node.children && node.children.length > 0) {
       item.children = node.children.map(formatNode);
     }
@@ -170,12 +349,21 @@ export function getNode(tree, path) {
   return path.reduce((nodes, index, depth) => depth === path.length - 1 ? nodes[index] : nodes[index].children, tree);
 }
 
-export function changeTree(tree, path, change) {
+// Fields whose change counts as work on a task. `collapsed` is view state and
+// `children` changes are tracked on the children themselves.
+const TRACKED_FIELDS = ['title', 'status', 'priority', 'tag', 'note', 'effort', 'due', 'extra'];
+
+function snapshot(node) {
+  return JSON.stringify(TRACKED_FIELDS.map(field => node[field] ?? null));
+}
+
+export function changeTree(tree, path, change, now = new Date()) {
   const copy = structuredClone(tree);
   const target = getNode(copy, path);
   const prevStatus = target.status;
   const prevDone = target.done !== undefined ? target.done : (target.status === 'done');
   const wasDone = prevStatus === 'done' || prevDone === true;
+  const before = snapshot(target);
   change(target);
   // Synchronize status and done
   if (target.status !== prevStatus) {
@@ -185,16 +373,18 @@ export function changeTree(tree, path, change) {
   } else {
     target.done = target.status === 'done';
   }
-  if (!wasDone && target.status === 'done' && target.children.some(child => child.status !== 'done')) {
+  if (!wasDone && target.status === 'done' && !target.children.every(isSettled)) {
     throw new Error('Finish every subtask before completing its parent.');
   }
+  if (snapshot(target) !== before) target.updated = formatDateTime(now);
   // Reopening or adding a child reopens every completed ancestor.
   for (let length = path.length; length > 0; length--) {
     const node = getNode(copy, path.slice(0, length));
-    if (node.children.some(child => child.status !== 'done')) {
+    if (!node.children.every(isSettled)) {
       if (node.status === 'done') {
         node.status = 'open';
         node.done = false;
+        node.updated = formatDateTime(now);
       }
     }
   }
@@ -277,7 +467,13 @@ export function getAllTags(tree) {
   return Array.from(tags).sort((a, b) => a.localeCompare(b));
 }
 
-export function filterTree(tree, filters = {}, baseParentPath = []) {
+// Filters the branch rooted at `path`. Paths in the result are real paths in `tree`,
+// so actions on the focused root target the right task.
+export function filterBranch(tree, path, filters = {}) {
+  return filterTree([getNode(tree, path)], filters, path.slice(0, -1), path[path.length - 1]);
+}
+
+export function filterTree(tree, filters = {}, baseParentPath = [], firstIndex = 0) {
   const { status = null, priority = null, tag = null } = filters;
   const isFiltered = Boolean(status || priority || tag);
 
@@ -294,7 +490,7 @@ export function filterTree(tree, filters = {}, baseParentPath = []) {
     const result = [];
     for (let index = 0; index < nodes.length; index++) {
       const node = nodes[index];
-      const realPath = [...parentPath, index];
+      const realPath = [...parentPath, parentPath === baseParentPath ? firstIndex + index : index];
       const selfMatches = matches(node);
       const isSubtreeMatched = ancestorMatched || selfMatches;
       const filteredChildren = walk(node.children || [], realPath, isSubtreeMatched);

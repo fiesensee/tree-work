@@ -58,6 +58,9 @@ test('vault saves retain YAML format and notify only other panes', async () => {
   second.subscribe(() => otherChanges++);
   const loaded = await first.read();
   const stale = await second.read();
+  // The first read migrated the legacy file (ids, timestamps) and told the other pane.
+  assert.equal(otherChanges, 1);
+  otherChanges = 0;
   const next = changeTree(loaded.tree, [0, 0], node => { node.done = true; });
   await first.save(next, loaded.revision);
   const savedTree = parseTree(await vault.read(file));
@@ -174,3 +177,43 @@ test('text methods allow reading and fixing malformed files while honoring atomi
   await assert.rejects(store.saveText('text', 'rev'), /closed/);
 });
 
+
+test('reading an old file assigns ids once and writes them back; ids survive later saves', async () => {
+  const vault = fakeVault({ 'Work.tree': '- title: Project\n  status: open\n  children:\n    - title: Child\n' });
+  const file = vault.getAbstractFileByPath('Work.tree');
+  const store = createVaultStore(vault, file);
+  const loaded = await store.read();
+  const text = await vault.read(file);
+  assert.equal(loaded.revision, text);
+  assert.match(text, /^- id: [a-z0-9]{8}\n {2}title: Project/);
+  assert.match(text, /created: \d{4}-\d{2}-\d{2}\n/);
+  const ids = [loaded.tree[0].id, loaded.tree[0].children[0].id];
+  const next = changeTree(loaded.tree, [0, 0], node => { node.status = 'doing'; });
+  const saved = await store.save(next, loaded.revision);
+  assert.deepEqual([saved.tree[0].id, saved.tree[0].children[0].id], ids);
+  // A second read finds nothing to migrate and does not write.
+  const again = await store.read();
+  assert.equal(again.revision, saved.revision);
+  store.dispose();
+});
+
+test('two panes migrating the same file at once agree on one set of ids', async () => {
+  const vault = fakeVault({ 'Work.tree': '- title: Project\n' });
+  const file = vault.getAbstractFileByPath('Work.tree');
+  const one = createVaultStore(vault, file);
+  const two = createVaultStore(vault, file);
+  const [a, b] = await Promise.all([one.read(), two.read()]);
+  assert.equal(a.tree[0].id, b.tree[0].id);
+  assert.equal(a.revision, b.revision);
+  one.dispose(); two.dispose();
+});
+
+test('nodes added without ids (e.g. typed in text view) get ids on the next tree save', async () => {
+  const vault = fakeVault({ 'Work.tree': '' });
+  const file = vault.getAbstractFileByPath('Work.tree');
+  const store = createVaultStore(vault, file);
+  const { revision } = await store.read();
+  const saved = await store.save([{ title: 'Typed', status: 'open', priority: 'low', tag: '', collapsed: false, children: [] }], revision);
+  assert.match(saved.tree[0].id, /^[a-z0-9]{8}$/);
+  store.dispose();
+});

@@ -1,6 +1,7 @@
 .tree-work-view { padding: 0 !important; overflow: hidden; }
 .tree-work-root { width: 100%; height: 100%; min-height: 0; box-sizing: border-box; }
-.tree-work-root button { box-shadow: none; height: auto; white-space: normal; }
+.tree-work-root button,.tree-work-root select { box-shadow: none; height: auto; }
+.tree-work-root button { white-space: normal; }
 .tree-work-root {
   font-family: var(--font-interface, system-ui, sans-serif);
   color: var(--tw-text);
@@ -31,10 +32,10 @@
 .tree-work-root * {
   box-sizing: border-box;
 }
-.tree-work-root button,.tree-work-root input {
+.tree-work-root button,.tree-work-root input,.tree-work-root select {
   font: inherit;
 }
-.tree-work-root button,.tree-work-root a,.tree-work-root input {
+.tree-work-root button,.tree-work-root a,.tree-work-root input,.tree-work-root select {
   -webkit-tap-highlight-color: transparent;
 }
 .tree-work-root button {
@@ -47,7 +48,7 @@
 .tree-work-root button {
   transition: background .18s,border-color .18s,transform .18s;
 }
-.tree-work-root button:focus-visible,.tree-work-root a:focus-visible,.tree-work-root input:focus-visible,.tree-work-root [tabindex]:focus-visible {
+.tree-work-root button:focus-visible,.tree-work-root a:focus-visible,.tree-work-root input:focus-visible,.tree-work-root select:focus-visible,.tree-work-root [tabindex]:focus-visible {
   outline: 3px solid var(--tw-accent-text);
   outline-offset: 4px;
 }
@@ -227,6 +228,14 @@
   text-decoration: line-through;
   text-decoration-color: var(--tw-success);
 }
+/* Parked: consciously paused, visually quiet but not crossed out */
+.tree-work-root .task-card.parked {
+  border-style: dashed;
+  opacity: 0.7;
+}
+.tree-work-root .task-card.parked .task-title {
+  color: var(--tw-muted);
+}
 /* Priority borders */
 .tree-work-root .task-card.priority-low:not(.in-progress):not(.completed) {
   border-color: var(--tw-border);
@@ -331,6 +340,24 @@
   border-color: var(--tw-border);
   color: var(--tw-muted);
 }
+.tree-work-root .task-effort-pill,
+.tree-work-root .task-due-pill,
+.tree-work-root .task-note-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tw-muted);
+}
+.tree-work-root .task-note-pill {
+  cursor: pointer;
+  max-width: 220px;
+}
+.tree-work-root .task-note-pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-work-root .task-note-pill:hover,
 .tree-work-root .task-tag-pill:hover {
   border-color: var(--tw-accent-text);
   color: var(--tw-accent-text);
@@ -518,23 +545,22 @@
   font-weight: 600;
   margin: 24px 0 8px;
 }
-.tree-work-root dialog input {
+.tree-work-root dialog input,
+.tree-work-root dialog select {
   width: 100%;
   border: 1px solid var(--tw-border);
   border-radius: 6px;
   padding: 13px 12px;
   color: var(--tw-text);
-  background: var(--tw-surface);
+  background-color: var(--tw-surface);
+  font: inherit;
   font-size: 14px;
+  line-height: normal;
 }
 .tree-work-root dialog select {
-  width: 100%;
-  border: 1px solid var(--tw-border);
-  border-radius: 6px;
-  padding: 11px 12px;
-  color: var(--tw-text);
-  background: var(--tw-surface);
-  font-size: 14px;
+  height: auto;
+  padding-right: 32px;
+  cursor: pointer;
 }
 .tree-work-root .dialog-row {
   display: flex;

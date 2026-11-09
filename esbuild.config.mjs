@@ -17,6 +17,7 @@ if (vaultPluginDir) {
     await writeFile(`${vaultPluginDir}/.hotreload`, '');
     canSyncToVault = true;
   } catch (err) {
+    console.warn(`Vault path not accessible (${vaultPluginDir}), skipping sync: ${err.message}`);
     const message = err instanceof Error ? err.message : String(err);
     console.warn(`Vault path not accessible (${vaultPluginDir}), skipping sync: ${message}`);
   }
