@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTree, serializeTree, changeTree, deleteNode, removeCompleted, statistics, getErrorMessage, setBranchesCollapsed, getAllTags, filterTree } from '../shared/tree.js';
+import { parseTree, serializeTree, changeTree, deleteNode, removeCompleted, statistics, getErrorMessage, setBranchesCollapsed, getAllTags, filterTree, parseTags, tagMatches } from '../shared/tree.js';
 
 test('getErrorMessage safely extracts messages from Error instances and non-Error values', () => {
   assert.equal(getErrorMessage(new Error('Sample error')), 'Sample error');
@@ -302,6 +302,101 @@ test('getAllTags returns all unique sorted non-empty tags from tree', () => {
     { title: 'C', tag: '', children: [{ title: 'C1', tag: null, children: [] }] },
   ];
   assert.deepEqual(getAllTags(tree), ['backend', 'frontend', 'urgent']);
+});
+
+test('parseTags splits comma-separated tag strings correctly', () => {
+  assert.deepEqual(parseTags('work, famulus'), ['work', 'famulus']);
+  assert.deepEqual(parseTags('work ,famulus'), ['work', 'famulus']);
+  assert.deepEqual(parseTags('single'), ['single']);
+  assert.deepEqual(parseTags(''), []);
+  assert.deepEqual(parseTags('  '), []);
+  assert.deepEqual(parseTags('a, b, c'), ['a', 'b', 'c']);
+  assert.deepEqual(parseTags('trailing,'), ['trailing']);
+  assert.deepEqual(parseTags(',leading'), ['leading']);
+  assert.deepEqual(parseTags(',,'), []);
+  assert.deepEqual(parseTags(null), []);
+  assert.deepEqual(parseTags(undefined), []);
+});
+
+test('tagMatches matches individual tags case-insensitively within comma-separated values', () => {
+  assert.equal(tagMatches('work, famulus', 'work'), true);
+  assert.equal(tagMatches('work, famulus', 'famulus'), true);
+  assert.equal(tagMatches('work, famulus', 'Work'), true);
+  assert.equal(tagMatches('work, famulus', 'FAMULUS'), true);
+  assert.equal(tagMatches('work, famulus', 'other'), false);
+  assert.equal(tagMatches('single', 'single'), true);
+  assert.equal(tagMatches('single', 'Single'), true);
+  assert.equal(tagMatches('', 'tag'), false);
+  assert.equal(tagMatches(null, 'tag'), false);
+  // No filter always matches
+  assert.equal(tagMatches('', null), true);
+  assert.equal(tagMatches('anything', ''), true);
+});
+
+test('getAllTags splits comma-separated tags into individual values', () => {
+  const tree = [
+    { title: 'A', tag: 'work, famulus', children: [] },
+    { title: 'B', tag: 'work', children: [] },
+    { title: 'C', tag: '  urgent , bug  ', children: [{ title: 'C1', tag: 'famulus', children: [] }] },
+  ];
+  assert.deepEqual(getAllTags(tree), ['bug', 'famulus', 'urgent', 'work']);
+});
+
+test('filterTree matches tasks with multiple comma-separated tags', () => {
+  const tree = [
+    {
+      title: 'Root with multi-tag',
+      tag: 'frontend, urgent',
+      status: 'open',
+      priority: 'low',
+      collapsed: false,
+      children: [
+        {
+          title: 'Child',
+          tag: '',
+          status: 'open',
+          priority: 'low',
+          collapsed: false,
+          children: [],
+        },
+      ],
+    },
+    {
+      title: 'Unrelated',
+      tag: 'backend',
+      status: 'open',
+      priority: 'low',
+      collapsed: false,
+      children: [],
+    },
+  ];
+
+  // Filter by 'frontend' should find the multi-tag root
+  const frontendFilter = filterTree(tree, { tag: 'frontend' });
+  assert.equal(frontendFilter.length, 1);
+  assert.equal(frontendFilter[0].title, 'Root with multi-tag');
+  // Child inherited match via ancestorMatched
+  assert.equal(frontendFilter[0].children.length, 1);
+  assert.equal(frontendFilter[0].children[0].title, 'Child');
+
+  // Filter by 'urgent' should also find it
+  const urgentFilter = filterTree(tree, { tag: 'urgent' });
+  assert.equal(urgentFilter.length, 1);
+  assert.equal(urgentFilter[0].title, 'Root with multi-tag');
+
+  // Filter by 'backend' finds the unrelated task
+  const backendFilter = filterTree(tree, { tag: 'backend' });
+  assert.equal(backendFilter.length, 1);
+  assert.equal(backendFilter[0].title, 'Unrelated');
+
+  // Case-insensitive matching works
+  const caseFilter = filterTree(tree, { tag: 'FRONTEND' });
+  assert.equal(caseFilter.length, 1);
+  assert.equal(caseFilter[0].title, 'Root with multi-tag');
+
+  // Non-matching tag returns empty
+  const noMatch = filterTree(tree, { tag: 'nonexistent' });
+  assert.equal(noMatch.length, 0);
 });
 
 test('filterTree keeps full ancestor context path to matching descendants', () => {

@@ -451,14 +451,30 @@ export function removeCompleted(tree) {
   return validateTree(prune(tree));
 }
 
+// Splits a comma-separated tag string into individual, trimmed, non-empty tags.
+// Used internally for matching; the raw tag string is kept as-is for storage and display.
+export function parseTags(tag) {
+  if (!tag || typeof tag !== 'string') return [];
+  return tag.split(',').map(t => t.trim()).filter(Boolean);
+}
+
+// Returns true when at least one of the comma-separated tags in nodeTag equals
+// filterTag (case-insensitive). A missing or empty nodeTag never matches.
+export function tagMatches(nodeTag, filterTag) {
+  if (!filterTag) return true; // no filter: everything matches
+  if (!nodeTag || typeof nodeTag !== 'string') return false;
+  return parseTags(nodeTag).some(t => t.toLowerCase() === filterTag.toLowerCase());
+}
+
 export function getAllTags(tree) {
   const tags = new Set();
   function walk(nodes) {
     if (!Array.isArray(nodes)) return;
     for (const node of nodes) {
       if (typeof node?.tag === 'string') {
-        const trimmed = node.tag.trim();
-        if (trimmed) tags.add(trimmed);
+        for (const t of parseTags(node.tag)) {
+          tags.add(t);
+        }
       }
       if (node?.children) walk(node.children);
     }
@@ -481,7 +497,7 @@ export function filterTree(tree, filters = {}, baseParentPath = [], firstIndex =
     if (!isFiltered) return true;
     if (status && (node.status || 'open') !== status) return false;
     if (priority && (node.priority || 'low') !== priority) return false;
-    if (tag && (node.tag || '') !== tag) return false;
+    if (tag && !tagMatches(node.tag || '', tag)) return false;
     return true;
   }
 

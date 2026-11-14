@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { changeTree, collectIds, createNode, deleteNode, findPathById, getErrorMessage, getNode, isSettled, removeCompleted, statistics, setBranchesCollapsed, getAllTags, filterTree, filterBranch, noteLinkTarget, VALID_EFFORTS } from '../shared/tree.js';
+import { changeTree, collectIds, createNode, deleteNode, findPathById, getErrorMessage, getNode, isSettled, removeCompleted, statistics, setBranchesCollapsed, getAllTags, filterTree, filterBranch, noteLinkTarget, parseTags, VALID_EFFORTS } from '../shared/tree.js';
 import TreeCanvas from './TreeCanvas.jsx';
 import NamedElement from './NamedElement.jsx';
 import TextView from './TextView.jsx';
@@ -164,16 +164,17 @@ function TaskBranch({
               Context
             </span>
           )}
-          {Boolean(node.tag) && (
+          {Boolean(node.tag) && parseTags(node.tag).map(t => (
             <span
+              key={t}
               className="task-badge task-tag-pill"
-              title={`Tag: ${node.tag}. Click to edit task`}
+              title={`Tag: ${t}. Click to edit task`}
               onClick={event => { event.stopPropagation(); onEdit(currentPath, node); }}
             >
               <Icon name="tag" size={11}/>
-              <span>{node.tag}</span>
+              <span>{t}</span>
             </span>
-          )}
+          ))}
           {Boolean(node.effort) && (
             <span className="task-badge task-effort-pill" title={`Effort: ${EFFORT_LABELS[node.effort] || node.effort}`}>
               <Icon name="clock" size={11}/>
@@ -319,8 +320,9 @@ function TaskDialog({ parent, initialNode, onClose, onSubmit, busy, error }) {
       <label htmlFor={inputId}>Task name</label>
       <input ref={input} id={inputId} value={title} onChange={event => setTitle(event.target.value)} maxLength={500} placeholder={parent ? 'What’s the next small step?' : 'What would you like to work on?'} required disabled={busy}/>
 
-      <label htmlFor={tagId}>Tag</label>
+      <label htmlFor={tagId}>Tags</label>
       <input id={tagId} value={tag} onChange={event => setTag(event.target.value)} maxLength={100} placeholder="e.g. feature, personal, release" disabled={busy}/>
+      <span className="field-hint">Separate multiple tags with commas.</span>
 
       <div className="dialog-row">
         {isEditing && <div className="dialog-field">
