@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { changeTree, collectIds, createNode, deleteNode, findPathById, getErrorMessage, getNode, isSettled, removeCompleted, statistics, setBranchesCollapsed, getAllTags, filterTree, filterBranch, noteLinkTarget, VALID_EFFORTS } from '../shared/tree.js';
+import { changeTree, collectIds, createNode, deleteNode, findPathById, getErrorMessage, getNode, isSettled, removeCompleted, statistics, setBranchesCollapsed, getAllTags, filterTree, filterBranch, noteLinkTarget, parseTags, VALID_EFFORTS } from '../shared/tree.js';
 import TreeCanvas from './TreeCanvas.jsx';
 import NamedElement from './NamedElement.jsx';
 import TextView from './TextView.jsx';
@@ -164,16 +164,17 @@ function TaskBranch({
               Context
             </span>
           )}
-          {Boolean(node.tag) && (
+          {Boolean(node.tag) && parseTags(node.tag).map(t => (
             <span
+              key={t}
               className="task-badge task-tag-pill"
-              title={`Tag: ${node.tag}. Click to edit task`}
+              title={`Tag: ${t}. Click to edit task`}
               onClick={event => { event.stopPropagation(); onEdit(currentPath, node); }}
             >
               <Icon name="tag" size={11}/>
-              <span>{node.tag}</span>
+              <span>{t}</span>
             </span>
-          )}
+          ))}
           {Boolean(node.effort) && (
             <span className="task-badge task-effort-pill" title={`Effort: ${EFFORT_LABELS[node.effort] || node.effort}`}>
               <Icon name="clock" size={11}/>
