@@ -319,8 +319,9 @@ function TaskDialog({ parent, initialNode, onClose, onSubmit, busy, error }) {
       <label htmlFor={inputId}>Task name</label>
       <input ref={input} id={inputId} value={title} onChange={event => setTitle(event.target.value)} maxLength={500} placeholder={parent ? 'What’s the next small step?' : 'What would you like to work on?'} required disabled={busy}/>
 
-      <label htmlFor={tagId}>Tag</label>
+      <label htmlFor={tagId}>Tags</label>
       <input id={tagId} value={tag} onChange={event => setTag(event.target.value)} maxLength={100} placeholder="e.g. feature, personal, release" disabled={busy}/>
+      <span className="field-hint">Separate multiple tags with commas.</span>
 
       <div className="dialog-row">
         {isEditing && <div className="dialog-field">
