@@ -80,6 +80,22 @@ export default function TreeCanvas({ children, ready, controls, branchControls, 
     pendingAnchor.current = null;
   }, [zoom, fitting, left, top]);
 
+  // Ctrl/Cmd + wheel over the canvas zooms the whole tree, reusing the same
+  // changeZoom path the +/- buttons use. Without the modifier the wheel scrolls.
+  useLayoutEffect(() => {
+    const canvas = viewport.current;
+    if (!canvas) return;
+    const handleWheel = (event) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        const factor = (event.deltaY || -event.wheelDelta || 0) < 0 ? 1.25 : 1 / 1.25;
+        changeZoom(zoom * factor);
+      }
+    };
+    canvas.addEventListener('wheel', handleWheel);
+    return () => canvas.removeEventListener('wheel', handleWheel);
+  }, [zoom, ready]);
+
   function changeZoom(value) {
     const centerX = size.width / 2;
     const centerY = Math.max(0, size.height - size.bottom) / 2;
