@@ -435,6 +435,79 @@ export function deleteNode(tree, path) {
   return validateTree(copy);
 }
 
+export function moveNode(tree, sourcePath, targetPath) {
+  if (!sourcePath || !sourcePath.length) throw new Error('A source path is required to move a task.');
+  if (!targetPath || !targetPath.length) throw new Error('A target path is required to move a task.');
+
+  // Reject cycles: target cannot be a descendant of source
+  for (let len = targetPath.length; len >= sourcePath.length; len--) {
+    const prefix = targetPath.slice(0, len);
+    if (prefix.length === sourcePath.length && prefix.every((v, i) => v === sourcePath[i])) {
+      throw new Error('Cannot move a task into its own descendant.');
+    }
+  }
+
+  const copy = structuredClone(tree);
+
+  // Adjust target path to account for removal shifting indices
+  function adjustedTarget() {
+    // Same-parent adjustment: if source and target share a common parent and
+    // the source's index within that parent is less than the target's index,
+    // decrement the target's index at that level by 1.
+    const srcParentLen = sourcePath.length - 1;
+    if (targetPath.length > srcParentLen) {
+      const sameParent = sourcePath.slice(0, srcParentLen).every((v, i) => v === targetPath[i]);
+      if (sameParent && sourcePath[srcParentLen] < targetPath[srcParentLen]) {
+        const adjusted = [...targetPath];
+        adjusted[srcParentLen] -= 1;
+        return adjusted;
+      }
+    }
+    return targetPath;
+  }
+
+  const effectiveTargetPath = adjustedTarget();
+
+  // Remove source from its old parent
+  let removed;
+  if (sourcePath.length === 1) {
+    const index = sourcePath[0];
+    if (index < 0 || index >= copy.length) throw new Error('Source task does not exist.');
+    removed = copy.splice(index, 1)[0];
+  } else {
+    const parentPath = sourcePath.slice(0, -1);
+    const index = sourcePath[sourcePath.length - 1];
+    const parent = getNode(copy, parentPath);
+    if (!parent || !parent.children || index < 0 || index >= parent.children.length) {
+      throw new Error('Source task does not exist.');
+    }
+    removed = parent.children.splice(index, 1)[0];
+  }
+
+  // Update timestamps on moved node
+  removed.updated = formatDateTime(new Date());
+
+  // Find target (using adjusted path) and insert
+  const targetNode = getNode(copy, effectiveTargetPath);
+  if (!targetNode) throw new Error('Target task does not exist.');
+  targetNode.children.push(removed);
+  targetNode.updated = formatDateTime(new Date());
+
+  // Reopening or adding a child reopens every completed ancestor
+  for (let length = effectiveTargetPath.length; length > 0; length--) {
+    const node = getNode(copy, effectiveTargetPath.slice(0, length));
+    if (!node.children.every(isSettled)) {
+      if (node.status === 'done') {
+        node.status = 'open';
+        node.done = false;
+        node.updated = formatDateTime(new Date());
+      }
+    }
+  }
+
+  return validateTree(copy);
+}
+
 export function removeCompleted(tree) {
   function prune(nodes) {
     const kept = [];
