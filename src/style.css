@@ -1055,6 +1055,17 @@
   border-style: dashed;
   background: transparent;
 }
+.tree-work-root .task-card.dragging {
+  opacity: 0.4;
+}
+.tree-work-root .task-card.drag-target {
+  border-color: var(--tw-accent);
+  box-shadow: 0 0 0 2px var(--tw-accent), var(--tw-shadow);
+  background: var(--tw-accent-soft);
+}
+.tree-work-root .forest-origin-droppable {
+  cursor: copy;
+}
 .tree-work-root .task-card.context-only {
   opacity: 0.72;
   border-style: dashed;

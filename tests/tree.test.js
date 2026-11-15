@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTree, serializeTree, changeTree, deleteNode, removeCompleted, statistics, getErrorMessage, setBranchesCollapsed, getAllTags, filterTree, parseTags, tagMatches } from '../shared/tree.js';
+import { parseTree, serializeTree, changeTree, deleteNode, moveNode, removeCompleted, statistics, getErrorMessage, setBranchesCollapsed, getAllTags, filterTree, parseTags, tagMatches } from '../shared/tree.js';
 
 test('getErrorMessage safely extracts messages from Error instances and non-Error values', () => {
   assert.equal(getErrorMessage(new Error('Sample error')), 'Sample error');
@@ -331,6 +331,106 @@ test('tagMatches matches individual tags case-insensitively within comma-separat
   // No filter always matches
   assert.equal(tagMatches('', null), true);
   assert.equal(tagMatches('anything', ''), true);
+});
+
+test('moveNode reparents a task from one parent to another', () => {
+  const input = [
+    '- title: Root',
+    '  status: open',
+    '  children:',
+    '    - title: A',
+    '      status: open',
+    '    - title: B',
+    '      status: open',
+    '      children:',
+    '        - title: B1',
+    '          status: open',
+    '- title: Other',
+    '  status: open',
+  ].join('\n');
+  const tree = parseTree(input);
+
+  // Move B under Other
+  const moved = moveNode(tree, [0, 1], [1]);
+  assert.equal(moved.length, 2);
+  assert.equal(moved[0].title, 'Root');
+  assert.equal(moved[0].children.length, 1);
+  assert.equal(moved[0].children[0].title, 'A');
+  assert.equal(moved[1].title, 'Other');
+  assert.equal(moved[1].children.length, 1);
+  assert.equal(moved[1].children[0].title, 'B');
+  assert.equal(moved[1].children[0].children[0].title, 'B1');
+});
+
+test('moveNode moves a task from root to a parent', () => {
+  const input = [
+    '- title: Task 1',
+    '  status: open',
+    '- title: Task 2',
+    '  status: open',
+    '  children:',
+    '    - title: Sub',
+    '      status: open',
+  ].join('\n');
+  const tree = parseTree(input);
+
+  // Move Task 1 under Sub
+  const moved = moveNode(tree, [0], [1, 0]);
+  assert.equal(moved.length, 1);
+  assert.equal(moved[0].title, 'Task 2');
+  assert.equal(moved[0].children[0].title, 'Sub');
+  assert.equal(moved[0].children[0].children[0].title, 'Task 1');
+});
+
+test('moveNode moves a deeply nested task to a different parent', () => {
+  const input = [
+    '- title: Root',
+    '  status: open',
+    '  children:',
+    '    - title: A',
+    '      status: open',
+    '      children:',
+    '        - title: Deep',
+    '          status: open',
+    '- title: Target',
+    '  status: open',
+  ].join('\n');
+  const tree = parseTree(input);
+
+  // Move Deep under Target
+  const moved = moveNode(tree, [0, 0, 0], [1]);
+  assert.equal(moved[1].title, 'Target');
+  assert.equal(moved[1].children.length, 1);
+  assert.equal(moved[1].children[0].title, 'Deep');
+  assert.equal(moved[0].children[0].children.length, 0);
+});
+
+test('moveNode rejects moving a task into its own descendant (cycle)', () => {
+  const input = [
+    '- title: Parent',
+    '  status: open',
+    '  children:',
+    '    - title: Child',
+    '      status: open',
+    '      children:',
+    '        - title: Grandchild',
+    '          status: open',
+  ].join('\n');
+  const tree = parseTree(input);
+
+  // Trying to move Parent into Grandchild should fail
+  assert.throws(() => moveNode(tree, [0], [0, 0, 0]), /descendant/);
+
+  // Trying to move Child into Grandchild should also fail
+  assert.throws(() => moveNode(tree, [0, 0], [0, 0, 0]), /descendant/);
+});
+
+test('moveNode rejects invalid paths', () => {
+  const tree = parseTree('- title: Solo\n  status: open\n');
+  assert.throws(() => moveNode(tree, [], [0]), /path/);
+  assert.throws(() => moveNode(tree, [0], []), /path/);
+  assert.throws(() => moveNode(tree, [5], [0]), /exist/);
+  assert.throws(() => moveNode(tree, [0], [5]), /exist/);
 });
 
 test('getAllTags splits comma-separated tags into individual values', () => {

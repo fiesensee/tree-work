@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { changeTree, collectIds, createNode, deleteNode, findPathById, getErrorMessage, getNode, isSettled, removeCompleted, statistics, setBranchesCollapsed, getAllTags, filterTree, filterBranch, noteLinkTarget, parseTags, VALID_EFFORTS } from '../shared/tree.js';
+import { changeTree, collectIds, createNode, deleteNode, findPathById, formatDateTime, getErrorMessage, getNode, isSettled, moveNode, removeCompleted, statistics, setBranchesCollapsed, validateTree, getAllTags, filterTree, filterBranch, noteLinkTarget, parseTags, VALID_EFFORTS } from '../shared/tree.js';
 import TreeCanvas from './TreeCanvas.jsx';
 import NamedElement from './NamedElement.jsx';
 import TextView from './TextView.jsx';
@@ -85,6 +85,13 @@ function TaskBranch({
   onFocus,
   isFocusRoot = false,
   onOpenNote,
+  dragging,
+  dragTarget,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
 }) {
   const subtreeId = useId();
   const card = useRef(null);
@@ -104,15 +111,23 @@ function TaskBranch({
   const blocked = !node.children.every(isSettled);
   const noteTarget = noteLinkTarget(node.note);
   const hasMeta = isContextOnly || Boolean(node.tag) || Boolean(node.effort) || Boolean(node.due) || Boolean(noteTarget);
+  const isDragging = dragging && dragging.join('.') === currentPath.join('.');
+  const isDropTarget = dragTarget && dragTarget.join('.') === currentPath.join('.');
 
   return <li className="branch">
     <article
       ref={card}
       tabIndex={isFocusRoot ? -1 : undefined}
-      className={`task-card priority-${node.priority || 'low'} ${isDone ? 'completed' : ''} ${isDoing ? 'in-progress' : ''} ${isParked ? 'parked' : ''} ${isContextOnly ? 'context-only' : ''} ${isFocusRoot ? 'focused-root' : 'can-focus'}`}
+      draggable={!busy && !isFocusRoot}
+      className={`task-card priority-${node.priority || 'low'} ${isDone ? 'completed' : ''} ${isDoing ? 'in-progress' : ''} ${isParked ? 'parked' : ''} ${isContextOnly ? 'context-only' : ''} ${isFocusRoot ? 'focused-root' : 'can-focus'} ${isDragging ? 'dragging' : ''} ${isDropTarget ? 'drag-target' : ''}`}
       onClick={event => {
         if (!isFocusRoot && !event.target.closest('button')) onFocus(currentPath);
       }}
+      onDragStart={event => { if (!isFocusRoot) onDragStart(event, currentPath); }}
+      onDragOver={event => { if (!isFocusRoot) onDragOver(event, currentPath); }}
+      onDragLeave={event => { onDragLeave(event, currentPath); }}
+      onDrop={event => { if (!isFocusRoot) onDrop(event, currentPath); }}
+      onDragEnd={event => { onDragEnd(event); }}
     >
       <div className="task-main">
         <NamedElement
@@ -242,6 +257,13 @@ function TaskBranch({
           onCollapse={onCollapse}
           onFocus={onFocus}
           onOpenNote={onOpenNote}
+          dragging={dragging}
+          dragTarget={dragTarget}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onDragEnd={onDragEnd}
         />
       ))}
     </ul>}
@@ -381,6 +403,8 @@ export default function App({
   const [cleaningUp, setCleaningUp] = useState(false);
   const [saved, setSaved] = useState(false);
   const [focusPath, setFocusPath] = useState(null);
+  const [dragging, setDragging] = useState(null);
+  const [dragTarget, setDragTarget] = useState(null);
   const [filterStatus, setFilterStatus] = useState(null);
   const [filterPriority, setFilterPriority] = useState(null);
   const [filterTag, setFilterTag] = useState(null);
@@ -457,6 +481,101 @@ export default function App({
 
   const currentBranches = displayFocusedNode ? [displayFocusedNode] : displayTree;
   const { canCollapse, canExpand } = hasCollapsibleBranches(currentBranches);
+
+  function handleDragStart(event, path) {
+    event.dataTransfer.setData('text/plain', path.join(','));
+    event.dataTransfer.effectAllowed = 'move';
+    setDragging(path);
+  }
+
+  function handleDragEnd() {
+    setDragging(null);
+    setDragTarget(null);
+  }
+
+  function handleDragOver(event, path) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    if (!dragging) return;
+    if (dragging.join('.') === path.join('.')) {
+      setDragTarget(null);
+      return;
+    }
+    // Reject if target is a descendant of source (would create a cycle)
+    for (let len = path.length; len >= dragging.length; len--) {
+      const prefix = path.slice(0, len);
+      if (prefix.length === dragging.length && prefix.every((v, i) => v === dragging[i])) {
+        setDragTarget(null);
+        return;
+      }
+    }
+    setDragTarget(path);
+  }
+
+  function handleDragLeave(event, path) {
+    if (dragTarget && dragTarget.join('.') === path.join('.')) {
+      const related = event.relatedTarget;
+      if (!related || !event.currentTarget.contains(related)) {
+        setDragTarget(null);
+      }
+    }
+  }
+
+  function handleDropOnTask(event, path) {
+    event.preventDefault();
+    setDragTarget(null);
+    const sourceStr = event.dataTransfer.getData('text/plain');
+    if (!sourceStr) return;
+    const sourcePath = sourceStr.split(',').map(Number);
+    if (sourcePath.join('.') === path.join('.')) {
+      setDragging(null);
+      return;
+    }
+    // Reject cycles
+    for (let len = path.length; len >= sourcePath.length; len--) {
+      const prefix = path.slice(0, len);
+      if (prefix.length === sourcePath.length && prefix.every((v, i) => v === sourcePath[i])) {
+        setDragging(null);
+        return;
+      }
+    }
+    try {
+      const nextTree = moveNode(tree, sourcePath, path);
+      void save(nextTree);
+    } catch (failure) {
+      setError(getErrorMessage(failure));
+    } finally {
+      setDragging(null);
+    }
+  }
+
+  function handleDropOnRoot(event) {
+    event.preventDefault();
+    setDragTarget(null);
+    const sourceStr = event.dataTransfer.getData('text/plain');
+    if (!sourceStr) return;
+    const sourcePath = sourceStr.split(',').map(Number);
+    if (sourcePath.length === 1) {
+      setDragging(null);
+      return; // Already at root level
+    }
+    try {
+      if (working.current) return;
+      const copy = structuredClone(tree);
+      const parentPath = sourcePath.slice(0, -1);
+      const index = sourcePath[sourcePath.length - 1];
+      const parent = getNode(copy, parentPath);
+      const removed = parent.children.splice(index, 1)[0];
+      removed.updated = formatDateTime(new Date());
+      copy.push(removed);
+      const nextTree = validateTree(copy);
+      void save(nextTree);
+    } catch (failure) {
+      setError(getErrorMessage(failure));
+    } finally {
+      setDragging(null);
+    }
+  }
 
   async function handleCollapseAll(shouldCollapse) {
     try {
@@ -810,6 +929,13 @@ export default function App({
               onFocus={focusTask}
               onOpenNote={onOpenNote}
               isFocusRoot
+              dragging={dragging}
+              dragTarget={dragTarget}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDropOnTask}
+              onDragEnd={handleDragEnd}
             />
           </ul> : focusPath && !displayFocusedNode ? (
             <div className="empty-filter-state">
@@ -831,7 +957,30 @@ export default function App({
               </button>
             </div>
           ) : <>
-          <div className="forest-origin">
+          <div
+            className={`forest-origin${dragging && dragging.length > 1 ? ' forest-origin-droppable' : ''}${dragTarget && dragTarget.length === 0 ? ' drag-target' : ''}`}
+            onDragOver={event => {
+              if (!dragging || dragging.length === 1) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+              setDragTarget([]);
+            }}
+            onDragLeave={event => {
+              if (dragTarget && dragTarget.length === 0) {
+                const related = event.relatedTarget;
+                if (!related || !event.currentTarget.contains(related)) {
+                  setDragTarget(null);
+                }
+              }
+            }}
+            onDrop={event => {
+              if (dragging && dragging.length > 1) {
+                handleDropOnRoot(event);
+              } else {
+                event.preventDefault();
+              }
+            }}
+          >
             <Icon name="branch" size={22}/>
             <span>My work</span>
             <NamedElement
@@ -856,6 +1005,13 @@ export default function App({
                 onCollapse={toggleBranch}
                 onFocus={focusTask}
                 onOpenNote={onOpenNote}
+                dragging={dragging}
+                dragTarget={dragTarget}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDropOnTask}
+                onDragEnd={handleDragEnd}
               />
             ))}
           </ul>}
