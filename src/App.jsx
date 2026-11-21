@@ -274,11 +274,12 @@ function ConfirmDialog({ eyebrow = 'CONFIRMATION', title, message, confirmLabel 
   const dialog = useRef(null);
   const titleId = useId();
   const confirmBtn = useRef(null);
+  const backdropPress = useRef(false);
   useEffect(() => {
     dialog.current?.showModal();
     confirmBtn.current?.focus();
   }, []);
-  return <dialog ref={dialog} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} onClick={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+  return <dialog ref={dialog} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} onMouseDown={event => { backdropPress.current = event.target === event.currentTarget; }} onClick={event => { if (event.target === event.currentTarget && !busy && backdropPress.current) { backdropPress.current = false; onClose(); } }}>
     <div className="dialog-heading">
       <span className="eyebrow">{eyebrow}</span>
       <NamedElement type="button" className="icon-button" label="Close" disabled={busy} onClick={onClose}><Icon name="close"/></NamedElement>
@@ -300,6 +301,7 @@ function TaskDialog({ parent, initialNode, onClose, onSubmit, busy, error }) {
   const inputId = useId();
   const tagId = useId();
   const input = useRef(null);
+  const backdropPress = useRef(false);
 
   const isEditing = Boolean(initialNode);
   const [title, setTitle] = useState(initialNode?.title || '');
@@ -318,7 +320,7 @@ function TaskDialog({ parent, initialNode, onClose, onSubmit, busy, error }) {
     input.current?.focus();
   }, []);
 
-  return <dialog ref={dialog} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} onClick={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+  return <dialog ref={dialog} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} onMouseDown={event => { backdropPress.current = event.target === event.currentTarget; }} onClick={event => { if (event.target === event.currentTarget && !busy && backdropPress.current) { backdropPress.current = false; onClose(); } }}>
     <form onSubmit={event => {
       event.preventDefault();
       if (title.trim() && !busy) {
