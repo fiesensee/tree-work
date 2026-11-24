@@ -211,13 +211,44 @@
   background: var(--tw-success-soft);
   border-color: var(--tw-success);
 }
-.tree-work-root .task-title {
-  font-size: 16px;
+.tree-work-root .task-title-block {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.tree-work-root .task-title {
+  width: 100%;
+  font-size: 16px;
+  flex: 0 0 auto;
   min-width: 0;
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.tree-work-root .task-title.expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+.tree-work-root .task-title-toggle {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tw-accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tree-work-root .task-title-toggle:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .tree-work-root .completed {
   background: var(--tw-success-soft);
