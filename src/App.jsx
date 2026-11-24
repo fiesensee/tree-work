@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { changeTree, collectIds, createNode, deleteNode, findPathById, formatDateTime, getErrorMessage, getNode, isSettled, moveNode, removeCompleted, statistics, setBranchesCollapsed, validateTree, getAllTags, filterTree, filterBranch, noteLinkTarget, parseTags, VALID_EFFORTS } from '../shared/tree.js';
 import TreeCanvas from './TreeCanvas.jsx';
+import { isTitleOverflowing, toggleTitleExpanded } from './title-overflow.js';
 import NamedElement from './NamedElement.jsx';
 import TextView from './TextView.jsx';
 
@@ -95,10 +96,29 @@ function TaskBranch({
 }) {
   const subtreeId = useId();
   const card = useRef(null);
+  const titleRef = useRef(null);
+  const [titleExpanded, setTitleExpanded] = useState(false);
+  const [titleOverflows, setTitleOverflows] = useState(false);
   const currentPath = node.realPath || path;
   useEffect(() => {
     if (isFocusRoot) card.current?.focus({ preventScroll: true });
   }, [isFocusRoot, currentPath.join('.')]);
+  useEffect(() => {
+    setTitleExpanded(false);
+  }, [node.title]);
+  useEffect(() => {
+    const element = titleRef.current;
+    if (!element) return;
+    const measure = () => {
+      if (titleExpanded) return;
+      setTitleOverflows(isTitleOverflowing(element));
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [node.title, titleExpanded]);
 
   const isCollapsed = Boolean(node.collapsed);
   const isContextOnly = Boolean(node.isContextOnly);
@@ -146,13 +166,27 @@ function TaskBranch({
         >
           {isDone ? <Icon name="check" size={15}/> : isDoing ? <Icon name="circleDot" size={13}/> : isParked ? <Icon name="pause" size={12}/> : null}
         </NamedElement>
-        {isFocusRoot ? (
-          <span className="task-title">{node.title}</span>
-        ) : (
-          <NamedElement className="task-title task-focus" label={`Focus on ${node.title}`} onClick={() => onFocus(currentPath)}>
-            {node.title}
-          </NamedElement>
-        )}
+        <div className="task-title-block">
+          {isFocusRoot ? (
+            <span ref={titleRef} className={`task-title ${titleExpanded ? 'expanded' : ''}`}>{node.title}</span>
+          ) : (
+            <NamedElement ref={titleRef} className={`task-title task-focus ${titleExpanded ? 'expanded' : ''}`} label={`Focus on ${node.title}`} onClick={() => onFocus(currentPath)}>
+              {node.title}
+            </NamedElement>
+          )}
+          {titleOverflows && (
+            <NamedElement
+              className="task-title-toggle"
+              draggable={false}
+              aria-expanded={titleExpanded}
+              label={titleExpanded ? `Show less of ${node.title}` : `Show more of ${node.title}`}
+              onClick={event => { event.stopPropagation(); setTitleExpanded(toggleTitleExpanded); }}
+              onDragStart={event => event.stopPropagation()}
+            >
+              {titleExpanded ? 'Show less' : 'Show more'}
+            </NamedElement>
+          )}
+        </div>
         <div className="task-main-actions">
           <NamedElement
             className={`priority-toggle priority-${node.priority || 'low'}`}
