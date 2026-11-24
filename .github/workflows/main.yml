@@ -56,6 +56,8 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
       - name: Run Semantic Release
+        id: semantic-release
+        continue-on-error: true
         uses: cycjimmy/semantic-release-action@v4
         with:
           extra_plugins: |
@@ -63,3 +65,58 @@ jobs:
             @semantic-release/git
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Retry tag push after transient GitHub rejection
+        if: steps.semantic-release.outcome == 'failure'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          branch="${GITHUB_REF_NAME}"
+          local_head="$(git rev-parse HEAD)"
+          remote_head="$(git ls-remote --heads origin "refs/heads/${branch}" | awk '{print $1}')"
+
+          if [ "${remote_head}" != "${local_head}" ]; then
+            echo "::error::Release branch ${branch} was not pushed (remote ${remote_head:-<missing>}, local ${local_head}); refusing to retry tags."
+            exit 1
+          fi
+
+          mapfile -t tags_at_head < <(git tag --points-at HEAD)
+          if [ "${#tags_at_head[@]}" -eq 0 ]; then
+            echo "::error::Semantic Release failed before creating a tag at HEAD; refusing to retry tags."
+            exit 1
+          fi
+
+          pushed=0
+          for tag in "${tags_at_head[@]}"; do
+            if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+              continue
+            fi
+
+            echo "Retrying push of tag ${tag}..."
+            for attempt in 1 2 3 4 5; do
+              if git push origin "refs/tags/${tag}"; then
+                pushed=1
+                break
+              fi
+              if [ "${attempt}" -eq 5 ]; then
+                echo "::error::Failed to push tag ${tag} after ${attempt} attempts."
+                exit 1
+              fi
+              sleep $((attempt * 2))
+            done
+
+            note_ref="refs/notes/semantic-release-${tag}"
+            if git rev-parse --verify "${note_ref}" >/dev/null 2>&1; then
+              git push origin "${note_ref}"
+            fi
+          done
+
+          if [ "${pushed}" -eq 0 ]; then
+            echo "::error::Semantic Release failed, but no local tag was missing from the remote; not treating this as a transient tag-push failure."
+            exit 1
+          fi
+
+          echo "Tag push recovered."
